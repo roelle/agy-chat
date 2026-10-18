@@ -296,8 +296,9 @@ async function openActivity(agent) {
 async function send(content, where, thread) {
   const kind = thread ? "work" : $("#kind").value;
   const r = await api("/api/post", { ...where, content, thread, kind });
-  if (r.woke) toast(r.woke.length ? `woke ${r.woke.join(", ")}` : "posted — nobody mentioned, so nobody was woken");
-  else toast("sent");
+  const idle = S.state && !S.state.supervisor ? " — but no supervisor is running, so nothing wakes until you Start team" : "";
+  if (r.woke) toast((r.woke.length ? `woke ${r.woke.join(", ")}` : "posted — nobody mentioned, so nobody was woken") + (r.woke.length ? idle : ""));
+  else toast("sent" + idle);
 }
 
 $("#composer").addEventListener("submit", async (e) => {
