@@ -1,0 +1,24 @@
+[project]
+name = "agy-chat"
+version = "0.1.0"
+description = "A work-chat client for agy-team: humans and agents in shared channels and threads."
+readme = "README.md"
+requires-python = ">=3.10"
+# agyteam is the only dependency, and it is itself stdlib-only. Install it
+# from a checkout (pip install -e ../agy-team) or from its repository.
+dependencies = ["agyteam"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[project.scripts]
+agy-chat = "agychat.server:main"
+
+[tool.setuptools.packages.find]
+include = ["agychat*"]
+
+[tool.setuptools.package-data]
+agychat = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

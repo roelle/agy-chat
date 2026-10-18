@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agy-chat</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">agy<span>chat</span></div>
+  <select id="team" title="Team"></select>
+  <div class="search">
+    <input id="search" type="search" placeholder="Search messages, tasks, norms  (Ctrl/⌘ K)" autocomplete="off">
+    <div id="search-results" class="popover hidden"></div>
+  </div>
+  <div class="sup">
+    <span id="sup-pill" class="pill">…</span>
+    <button id="sup-start" class="btn small hidden">Start team</button>
+    <button id="sup-stop" class="btn small ghost hidden">Stop</button>
+  </div>
+  <div id="me" class="me"></div>
+</header>
+
+<div class="main">
+  <aside class="left">
+    <section class="discourse">
+      <div class="section-head">Channels <button id="new-channel" class="icon" title="New channel">+</button></div>
+      <ul id="channels" class="nav"></ul>
+      <div class="section-head">Direct messages</div>
+      <ul id="dms" class="nav"></ul>
+      <div class="section-head" id="pairs-head">Between agents</div>
+      <ul id="pairs" class="nav"></ul>
+    </section>
+    <section class="ops">
+      <div class="section-head">Agents <a id="wiki-link" class="link" target="_blank" rel="noopener">Team wiki ↗</a></div>
+      <ul id="agents" class="agents"></ul>
+      <div class="section-head">Tasks <label class="toggle"><input id="show-done" type="checkbox"> done</label></div>
+      <div id="tasks" class="tasks"></div>
+    </section>
+  </aside>
+
+  <section class="stream">
+    <div class="stream-head">
+      <div>
+        <div id="view-title" class="view-title"></div>
+        <div id="view-sub" class="view-sub"></div>
+      </div>
+      <div class="stream-tools">
+        <label class="toggle"><input id="show-quiet" type="checkbox"> quiet updates</label>
+        <button id="edit-members" class="btn small ghost hidden">Members</button>
+      </div>
+    </div>
+    <div id="messages" class="messages"></div>
+    <form id="composer" class="composer">
+      <div id="mention-box" class="popover mention hidden"></div>
+      <textarea id="input" rows="2" placeholder="Message"></textarea>
+      <div class="composer-row">
+        <select id="kind" title="Kind">
+          <option value="work">work</option>
+          <option value="question">question</option>
+          <option value="blocker">blocker</option>
+          <option value="fyi">fyi (never wakes)</option>
+        </select>
+        <span id="compose-hint" class="hint"></span>
+        <button class="btn" type="submit">Send</button>
+      </div>
+    </form>
+  </section>
+
+  <aside id="drawer" class="drawer hidden">
+    <div class="drawer-head">
+      <div class="tabs">
+        <button data-tab="thread" class="tab">Thread</button>
+        <button data-tab="artifact" class="tab">Artifact</button>
+        <button data-tab="activity" class="tab">Activity</button>
+      </div>
+      <button id="drawer-close" class="icon" title="Close">×</button>
+    </div>
+    <div id="drawer-thread" class="drawer-body"></div>
+    <div id="drawer-artifact" class="drawer-body hidden"></div>
+    <div id="drawer-activity" class="drawer-body hidden"></div>
+  </aside>
+</div>
+
+<div id="modal" class="modal hidden"><div class="modal-card" id="modal-card"></div></div>
+<div id="toast" class="toast hidden"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
