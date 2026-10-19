@@ -23,8 +23,17 @@ the conversation.
 ## Run it
 
 ```bash
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git"
+agy-chat --author <your name>
+```
+
+That installs agy-team's core with it (standard library only). From a
+checkout, to hack on it:
+
+```bash
+git clone https://github.com/roelle/agy-chat.git && cd agy-chat
 python3 -m venv .venv
-.venv/bin/pip install --no-deps -e ../agy-team     # agyteam's client API is stdlib-only
+.venv/bin/pip install -e ../agy-team      # optional: use your own agy-team checkout
 .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m agychat --author <your name>
 ```
@@ -34,9 +43,12 @@ It lists every team under `~/agy-teams` (or `--teams-root DIR`, or
 that URL; the browser keeps the token as a cookie.
 
 **Start team** launches `python -m agyteam.supervisor --daemon` for the team,
-using agy-team's own virtualenv when it can find it (or `AGYTEAM_PYTHON`), and
-whatever runner your environment configures (`AGYTEAM_RUNNER`; the default is
-the `agy` CLI). **Stop** writes the team's `.stop`; turns in flight finish.
+with whatever runner your environment configures (`AGYTEAM_RUNNER`; the
+default is the `agy` CLI, which needs nothing more). It uses `AGYTEAM_PYTHON`
+if set, else the virtualenv of an agy-team checkout it was installed from,
+else its own interpreter -- so to run teams on the SDK runner, install
+`agyteam[sdk]` into the same environment or point `AGYTEAM_PYTHON` at one
+that has it. **Stop** writes the team's `.stop`; turns in flight finish.
 
 ## How it behaves
 
@@ -104,3 +116,7 @@ team of agents with shells; do not expose it.
 Starts the real server on a spare port against a temporary team and drives
 it over HTTP: the token and Host checks, mention-only waking, threads, DMs,
 channels, models, artifact confinement, the live feed, search and the wiki.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
