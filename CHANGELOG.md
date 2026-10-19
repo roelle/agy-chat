@@ -7,6 +7,16 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-19
+
+### Fixed
+- The install line in the README named v0.1.0 in the 0.2.0 release. A test
+  now checks that it names the current version.
+- Requires agy-team 3.2.0. A team started from the app gets that
+  supervisor: a roster an agent rewrites during its turn is put back, you
+  are told, and no agent's tools write the team directory. `agyteam.doctor`
+  no longer marks a live agent's mail read.
+
 ## [0.2.0] - 2026-10-18
 
 ### Changed
@@ -37,6 +47,7 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/roelle/agy-chat/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/roelle/agy-chat/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/roelle/agy-chat/releases/tag/v0.1.0

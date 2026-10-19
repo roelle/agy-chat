@@ -23,3 +23,9 @@ def test_the_command_line_reports_both_versions():
     out = subprocess.run([sys.executable, "-m", "agychat", "--version"], capture_output=True,
                          text=True, timeout=60)
     assert out.stdout.startswith(f"agy-chat {agychat.__version__} (agyteam ")
+
+
+def test_the_readme_installs_this_version():
+    """0.2.0 shipped with a README that installed 0.1.0."""
+    pins = re.findall(r"agy-chat\.git@v(\d+\.\d+\.\d+)", (ROOT / "README.md").read_text())
+    assert pins and set(pins) == {agychat.__version__}, pins
