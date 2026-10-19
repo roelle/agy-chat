@@ -212,3 +212,39 @@ def test_the_model_list_comes_from_the_runner(server, monkeypatch):
     status, err = call(port, "POST", "/api/model", {"team": "demo", "agent": "coder",
                                                     "model": "not-offered"}, token=app.token)
     assert status == 400 and "fast-high" in err["error"]
+
+
+def test_start_runs_the_team_on_its_rosters_runner_not_the_apps(server, monkeypatch):
+    """Started from the app, a team got the app's environment: the default
+    runner (its wakes failed, its conversations were lost) and a guessed
+    manager."""
+    import os
+    import signal
+    import sys
+    app, port, td, _ = server
+    doc = json.loads((td / "roster.json").read_text())
+    doc["supervisor"] = {"runner": "team_runner:TeamRunner", "manager": "qa"}
+    (td / "roster.json").write_text(json.dumps(doc))
+    support = str(Path(__file__).parent / "support")
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join(filter(None, [support, os.environ.get("PYTHONPATH")])))
+    monkeypatch.setenv("AGYTEAM_PYTHON", sys.executable)
+    monkeypatch.setenv("AGYTEAM_RUNNER", "agyteam.runner_agy:AgyRunner")    # the app's own
+    status, r = call(port, "POST", "/api/supervisor?team=demo", {"action": "start"}, token=app.token)
+    assert status == 200 and r["started"], r
+    try:
+        beat = None
+        for _ in range(100):
+            _, st = call(port, "GET", "/api/state?team=demo", token=app.token)
+            beat = st.get("supervisor")
+            if beat:
+                break
+            time.sleep(0.1)
+        assert beat, (td.parent / "supervisor.log").read_text() if (td.parent / "supervisor.log").exists() else "no heartbeat"
+        assert beat["runner"] == "team-runner" and beat["source"]["runner"] == "roster"
+        assert beat["manager"] == "qa"
+    finally:
+        try:
+            os.killpg(r["pid"], signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+

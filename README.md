@@ -42,9 +42,14 @@ It lists every team under `~/agy-teams` (or `--teams-root DIR`, or
 `--team-dir PATH`, repeatable) and prints a URL with a one-time token. Open
 that URL; the browser keeps the token as a cookie.
 
-**Start team** launches `python -m agyteam.supervisor --daemon` for the team,
-with whatever runner your environment configures (`AGYTEAM_RUNNER`; the
-default is the `agy` CLI, which needs nothing more). It uses `AGYTEAM_PYTHON`
+**Start team** launches `python -m agyteam.supervisor --daemon` for the team.
+The runner and manager are the team's own when its roster has a
+[`supervisor` block](https://github.com/roelle/agy-team#how-a-team-is-run-the-rosters-supervisor-block)
+(`runner`, `runner_config`, `manager`); otherwise the runner is whatever your
+environment configures (`AGYTEAM_RUNNER`; the default is the `agy` CLI, which
+needs nothing more) and the manager is detected from roles. The status pill
+shows the runner and manager the supervisor is using; hover it to see where
+each came from. It uses `AGYTEAM_PYTHON`
 if set, else the virtualenv of an agy-team checkout it was installed from,
 else its own interpreter -- so to run teams on the SDK runner, install
 `agyteam[sdk]` into the same environment or point `AGYTEAM_PYTHON` at one
@@ -102,8 +107,7 @@ team of agents with shells; do not expose it.
 
 - Unread markers are per browser (local storage), not shared.
 - Search is substring search over the record, not an index.
-- Starting a team uses the runner your environment configures; there is no
-  per-team runner picker yet.
+- A team's runner is set in its roster, not picked in the app.
 - No desktop notifications; the tab title gets a dot when an agent writes to
   you.
 

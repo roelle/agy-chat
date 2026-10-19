@@ -126,7 +126,15 @@ async function refreshState() {
 
 function renderSupervisor() {
   const st = S.state; const pill = $("#sup-pill");
-  if (st.supervisor) { pill.textContent = `running (${st.supervisor.mode || "pid " + st.supervisor.pid})`; pill.className = "pill ok"; }
+  if (st.supervisor) {
+    const b = st.supervisor, src = b.source || {};
+    pill.textContent = `running (${b.mode || "pid " + b.pid})` + (b.runner ? ` · ${b.runner}` : "") + (b.manager ? ` · manager ${b.manager}` : "");
+    // Where the runner came from: "default" on a team that needs another
+    // runner is the misconfiguration the roster's supervisor block fixes.
+    pill.title = b.runner ? `runner ${b.runner_class || b.runner} (from ${src.runner || "?"}); manager ${b.manager || "none"}`
+      + ` (${src.manager === "roster" ? "from the roster" : "detected from roles"}); pid ${b.pid}` : `pid ${b.pid}`;
+    pill.className = "pill ok";
+  }
   else if (st.stopped) { pill.textContent = `stopped: ${st.stopped}`.slice(0, 60); pill.className = "pill bad"; }
   else { pill.textContent = "no supervisor: nothing will wake"; pill.className = "pill bad"; }
   $("#sup-start").classList.toggle("hidden", !!st.supervisor);
@@ -324,7 +332,11 @@ function mentionSuggest() {
   const ta = $("#input"); const before = ta.value.slice(0, ta.selectionStart);
   const m = before.match(/(?:^|\s)@([\w-]*)$/); const box = $("#mention-box");
   if (!m) return box.classList.add("hidden");
-  const names = [...S.state.agents.map((a) => a.name), "here", "all"].filter((n) => n.startsWith(m[1]));
+  // "@Ada" offers at-Ada: a name matches on its start or on any part after a
+  // team prefix, ignoring case, as agy-team resolves it.
+  const q = m[1].toLowerCase();
+  const names = [...S.state.agents.map((a) => a.name), "here", "all"]
+    .filter((n) => n.toLowerCase().split(/(?=[-_.])/).some((_, i, parts) => parts.slice(i).join("").replace(/^[-_.]/, "").startsWith(q)));
   if (!names.length) return box.classList.add("hidden");
   box.innerHTML = names.map((n, i) => `<div class="item ${i ? "" : "sel"}" data-name="${esc(n)}">@${esc(n)}
     <span class="k">${n === "here" ? "everyone in this channel" : n === "all" ? "the whole team" : ""}</span></div>`).join("");

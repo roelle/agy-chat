@@ -104,8 +104,9 @@ class Team:
 
     def start_supervisor(self) -> dict:
         """Clear a stop and start `python -m agyteam.supervisor --daemon` for
-        this team, unless one is already running. The runner is whatever the
-        environment this app was started in configures (AGYTEAM_RUNNER...)."""
+        this team, unless one is already running. The runner and manager are
+        the team's (its roster's "supervisor" block), else this app's
+        environment's (AGYTEAM_RUNNER...): agy-team resolves them."""
         from agyteam import actions, heartbeat
         actions.start(self.dir)
         if heartbeat.running(self.dir):
