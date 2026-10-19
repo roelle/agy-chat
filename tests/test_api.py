@@ -200,3 +200,15 @@ def test_activity_shows_one_agents_events(server):
         f.write(json.dumps({"ts": "2026-10-18 10:00:05", "event": "turn", "agent": "qa"}) + "\n")
     _, r = call(port, "GET", "/api/activity?team=demo&agent=coder", token=app.token)
     assert [e["tool"] for e in r["events"]] == ["run_command"]
+
+
+def test_the_model_list_comes_from_the_runner(server, monkeypatch):
+    from agyteam import runner as runner_lib
+    monkeypatch.setattr(runner_lib, "list_models",
+                        lambda *a, **k: [{"id": "fast-high", "label": "Fast (High)"}])
+    app, port, *_ = server
+    _, r = call(port, "GET", "/api/models?team=demo", token=app.token)
+    assert r["models"] == [{"id": "fast-high", "label": "Fast (High)"}]
+    status, err = call(port, "POST", "/api/model", {"team": "demo", "agent": "coder",
+                                                    "model": "not-offered"}, token=app.token)
+    assert status == 400 and "fast-high" in err["error"]

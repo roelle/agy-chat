@@ -222,6 +222,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(self.app.team(team).read_artifact(q.get("path", "")))
             if path == "/api/search":
                 return self._json({"hits": Record(self.app.team(team).dir).search(q.get("q", ""))})
+            if path == "/api/models":
+                from agyteam import runner as runner_lib
+                cls = runner_lib.runner_class()
+                return self._json({"runner": getattr(cls, "label", None),
+                                   "models": runner_lib.list_models()})
             if path == "/api/activity":
                 rows = [e for e in Record(self.app.team(team).dir).events()
                         if e.get("agent") == q.get("agent")]

@@ -160,8 +160,13 @@ function renderAgents() {
                     failing: `last turn failed: ${p.detail || ""}`, idle: `idle${p.since ? ", last turn " + hhmm(p.since) : ""}`,
                     offline: "offline (no supervisor)" }[p.state] || "";
     const over = (m.source || "").startsWith("override");
+    const bad = m.available === false;
+    const fallsBack = over && m.roster_available === false;
+    const tip = bad ? `${m.model} is not offered by this team's runner: every turn will fail. Click to choose another.`
+      : fallsBack ? `${m.source}. When it expires, ${a.name} goes back to the roster's ${m.roster_model}, which this runner does not offer.`
+      : (m.source || "");
     return `<li><span class="dot ${esc(p.state || "offline")}"></span><span class="name">${esc(a.name)}</span>
-      <button class="model ${over ? "override" : ""}" data-agent="${esc(a.name)}" title="${esc(m.source || "")}">${esc(m.model || "default")}${m.effort ? "·" + esc(m.effort) : ""}</button>
+      <button class="model ${over ? "override" : ""} ${bad ? "unavailable" : ""}" data-agent="${esc(a.name)}" title="${esc(tip)}">${bad || fallsBack ? "⚠ " : ""}${esc(m.model || "default")}${m.effort ? "·" + esc(m.effort) : ""}</button>
       <span class="state" title="${esc(state)}">${esc(state)}</span></li>`;
   }).join("");
 }
@@ -419,14 +424,24 @@ $("#edit-members").onclick = () => {
   });
 };
 
-function modelModal(agent) {
+async function modelModal(agent) {
   const a = S.state.agents.find((x) => x.name === agent); const m = a.model || {};
-  const known = [...new Set(S.state.agents.map((x) => x.model?.model).filter(Boolean))];
-  modal(`<h3>${esc(agent)}'s model</h3><div class="hint">now: ${esc(m.model || "runner default")} — ${esc(m.source || "")}</div>
-    <label>Model (empty = back to the roster's)</label><input type="text" name="model" list="known-models" value="${(m.source || "").startsWith("override") ? esc(m.model) : ""}">
-    <datalist id="known-models">${known.map((k) => `<option value="${esc(k)}">`).join("")}</datalist>
+  let offered = null, runnerLabel = "";
+  try { const r = await api(`/api/models?${q({})}`); offered = r.models; runnerLabel = r.runner || ""; } catch {}
+  const over = (m.source || "").startsWith("override");
+  const current = over ? m.model : "";
+  const picker = offered
+    ? `<select name="model"><option value="">the roster's choice${m.roster_model ? ` (${esc(m.roster_model)}${m.roster_available === false ? " — NOT offered, turns would fail" : ""})` : " (runner default)"}</option>
+        ${offered.map((o) => `<option value="${esc(o.id)}" ${o.id === current ? "selected" : ""}>${esc(o.label)} — ${esc(o.id)}</option>`).join("")}</select>
+       <div class="hint">${offered.length} models offered by the ${esc(runnerLabel)} runner</div>`
+    : `<input type="text" name="model" value="${esc(current)}" placeholder="model id">
+       <div class="hint">This runner cannot list its models; type the id it expects.</div>`;
+  modal(`<h3>${esc(agent)}'s model</h3>
+    <div class="hint">now: ${esc(m.model || "runner default")} — ${esc(m.source || "")}${m.available === false ? " — <b>not offered by this runner</b>" : ""}</div>
+    <label>Model</label>${picker}
     <label>Until</label><select name="until"><option value="">until I change it</option><option>4h</option><option>1d</option><option selected>3d</option><option>7d</option></select>
-    <div class="hint" style="margin-top:8px">Applied at ${esc(agent)}'s next idle moment: it distills, then starts a fresh conversation on the new model.</div>`,
+    <div class="hint" style="margin-top:8px">Applied at ${esc(agent)}'s next idle moment: it distills, then starts a fresh conversation on the new model.
+    When an override expires the agent goes back to the roster's model${m.available === false && !over ? "" : ""}.</div>`,
     async (fd) => { const r = await api("/api/model", { agent, model: fd.get("model") || null, until: fd.get("until") || null });
       toast(r.model ? `${agent} → ${r.model}` : `${agent} back to the roster's model`); refreshState(); });
 }
