@@ -300,6 +300,10 @@ def serve(app: App, host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPS
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="agy-chat", description=__doc__.split("\n\n")[0])
+    from . import __version__
+    from agyteam import __version__ as agyteam_version
+    ap.add_argument("--version", action="version",
+                    version=f"agy-chat {__version__} (agyteam {agyteam_version})")
     ap.add_argument("--teams-root", default=os.environ.get("AGYTEAM_TEAMS_ROOT", "~/agy-teams"))
     ap.add_argument("--team-dir", action="append", default=[],
                     help="a team directory to show (repeatable)")

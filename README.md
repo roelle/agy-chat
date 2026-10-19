@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.1.0"
 agy-chat --author <your name>
 ```
 
@@ -116,6 +116,15 @@ team of agents with shells; do not expose it.
 Starts the real server on a spare port against a temporary team and drives
 it over HTTP: the token and Host checks, mention-only waking, threads, DMs,
 channels, models, artifact confinement, the live feed, search and the wiki.
+
+## Versioning
+
+Releases are tagged `vX.Y.Z` ([Semantic Versioning](https://semver.org/)),
+with notes in [CHANGELOG.md](CHANGELOG.md); before 1.0.0 a minor release may
+break. Each release pins the agy-team release it was built against.
+`agy-chat --version` prints both. To cut one: move the `[Unreleased]` notes
+under a new version, set `__version__` in `agychat/__init__.py`, run the
+tests, then `git tag -a vX.Y.Z -m "agy-chat X.Y.Z" && git push origin main vX.Y.Z`.
 
 ## License
 
