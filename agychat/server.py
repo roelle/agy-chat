@@ -78,29 +78,55 @@ class App:
         agents = []
         for a in rec.roster().get("agents", []):
             n = a["name"]
-            agents.append({"name": n, "role": a.get("role", ""),
+            agents.append({"name": n, "alias": a.get("alias"), "role": a.get("role", ""),
                            "presence": presence.get(n, {}), "model": models.get(n, {})})
-        reviews = rec.reviews()
-        reviewed = {r.get("task_id") for r in reviews
-                    if r.get("verdict") in ("approved", "waived") and r.get("task_id")}
-        tasks = []
-        for task in rec.tasks()[:200]:
-            tasks.append({k: task.get(k) for k in (
-                "id", "project", "title", "owner", "status", "note", "check_after", "until",
-                "requires_review", "updated_at", "created_by", "evidence")}
-                | {"reviewed": task.get("id") in reviewed})
         sup = rec.supervisor()
-        return {"team": team, "author": self.author, "agents": agents,
-                "channels": rec.channels(), "conversations": rec.conversations(),
-                "tasks": tasks, "supervisor": sup, "stopped": rec.stopped(),
+        # Where an agent last mentioned the operator, keyed as the client keys
+        # its views ("c:<channel>"), so a mention made while nobody was
+        # looking is still flagged.
+        mentions = {}
+        for m in rec.bus():
+            if m.get("channel") and m.get("from") != "user" and "user" in (m.get("mentions") or []):
+                mentions[f"c:{m['channel']}"] = m.get("ts")
+        return {"team": team, "author": self.author, "operator": rec.operator(),
+                "mentions_of_user": mentions,
+                "agents": agents, "channels": rec.channels(),
+                "conversations": rec.conversations(), "tasks": self.tasks(team)[:300],
+                "supervisor": sup, "stopped": rec.stopped(),
                 "reply_counts": rec.reply_counts()}
+
+    TASK_FIELDS = ("id", "project", "title", "owner", "status", "note", "check_after", "until",
+                   "requires_review", "updated_at", "created_at", "created_by", "evidence",
+                   "channel", "rank", "deadline", "collaborators")
+
+    def tasks(self, team: str) -> list[dict]:
+        rec = Record(self.team(team).dir)
+        reviewed = {r.get("task_id") for r in rec.reviews()
+                    if r.get("verdict") in ("approved", "waived") and r.get("task_id")}
+        return [{k: t.get(k) for k in self.TASK_FIELDS} | {"reviewed": t.get("id") in reviewed}
+                for t in rec.tasks()]
+
+    def task(self, team: str, task_id: str) -> dict:
+        """One task with everything about it: its log, its messages, its reviews."""
+        from agyteam import tasks as tasks_lib
+        t = self.team(team)
+        rec = Record(t.dir)
+        row = next((x for x in self.tasks(team) if x["id"] == task_id), None)
+        if row is None:
+            raise LookupError(f"no task {task_id}")
+        return {"task": row,
+                "history": [e for e in tasks_lib.read(t.dir) if e.get("id") == task_id],
+                "messages": [m for m in rec.bus() if m.get("task_id") == task_id][-200:],
+                "reviews": [r for r in rec.reviews() if r.get("task_id") == task_id]}
 
     def messages(self, team: str, q: dict) -> dict:
         rec = Record(self.team(team).dir)
         if q.get("thread"):
             return {"messages": rec.thread(q["thread"])}
         if q.get("channel"):
-            rows = rec.messages(channel=q["channel"])
+            # A deleted channel's history stays in the record, out of sight.
+            gone = (rec.channels().get(q["channel"]) or {}).get("deleted")
+            rows = [] if gone else rec.messages(channel=q["channel"])
         elif q.get("dm"):
             a, _, b = q["dm"].partition(",")
             b = b or "user"
@@ -133,7 +159,33 @@ class App:
         if action == "members":
             return {"members": actions.set_members(t.dir, body["name"], body.get("add") or [],
                                                    body.get("remove") or [])}
+        if action == "topic":
+            actions.set_topic(t.dir, body["name"], body.get("topic") or "")
+            return {"ok": True}
+        fn = {"archive": actions.archive_channel, "delete": actions.delete_channel,
+              "restore": actions.restore_channel}.get(action)
+        if fn:
+            return fn(t.dir, body["name"])
         raise actions.OperatorError(f"unknown channel action {action!r}")
+
+    def task_action(self, team: str, body: dict) -> dict:
+        t = self.team(team)
+        action = body.get("action")
+        if action == "create":
+            return actions.create_task(
+                t.dir, body.get("project") or "", body.get("title") or "",
+                owner=body.get("owner") or None, note=body.get("note") or "",
+                channel=body.get("channel") or None, status=body.get("status") or None,
+                deadline=body.get("deadline") or None,
+                requires_review=bool(body.get("requires_review")), rank=body.get("rank"))
+        if action == "update":
+            fields = ("status", "owner", "title", "project", "note", "channel", "deadline", "rank")
+            return actions.update_task(t.dir, body["id"],
+                                       **{k: body[k] for k in fields if k in body})
+        if action == "waive":
+            return actions.waive_review(t.dir, body["id"], by=self.author,
+                                        reason=body.get("reason") or "waived on the board")
+        raise actions.OperatorError(f"unknown task action {action!r}")
 
     def model(self, team: str, body: dict) -> dict:
         t = self.team(team)
@@ -154,7 +206,7 @@ class App:
 
 class Handler(BaseHTTPRequestHandler):
     app: App = None                  # set by serve()
-    server_version = "agy-chat/0.1"
+    server_version = "agy-chat"
 
     def log_message(self, fmt, *args):  # quiet; errors still go to stderr
         pass
@@ -213,14 +265,14 @@ class Handler(BaseHTTPRequestHandler):
         if not self._local():
             return self._send(403, b"local only", "text/plain")
         path, q = self._query()
-        if path in ("/", "/index.html", "/wiki"):
+        if path in ("/", "/index.html", "/wiki", "/board"):
             extra = {}
             if q.get("token") and secrets.compare_digest(q["token"], self.app.token):
                 extra["Set-Cookie"] = f"{COOKIE}={self.app.token}; Path=/; HttpOnly; SameSite=Strict"
             elif not self._authed():
                 return self._send(401, b"Open the URL agy-chat printed (it carries the token).",
                                   "text/plain")
-            page = "wiki.html" if path == "/wiki" else "index.html"
+            page = {"/wiki": "wiki.html", "/board": "board.html"}.get(path, "index.html")
             return self._send(200, (STATIC / page).read_bytes(), "text/html; charset=utf-8", extra)
         if path.startswith("/static/"):
             f = (STATIC / path[len("/static/"):]).resolve()
@@ -242,6 +294,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(self.app.messages(team, q))
             if path == "/api/artifact":
                 return self._json(self.app.team(team).read_artifact(q.get("path", "")))
+            if path == "/api/tasks":
+                return self._json({"tasks": self.app.tasks(team)})
+            if path == "/api/task":
+                return self._json(self.app.task(team, q.get("id", "")))
             if path == "/api/search":
                 return self._json({"hits": Record(self.app.team(team).dir).search(q.get("q", ""))})
             if path == "/api/models":
@@ -280,7 +336,8 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(min(length, 1_000_000)) or b"{}")
             team = body.get("team") or q.get("team", "")
             route = {"/api/post": self.app.post, "/api/channel": self.app.channel,
-                     "/api/model": self.app.model, "/api/supervisor": self.app.supervisor}
+                     "/api/model": self.app.model, "/api/supervisor": self.app.supervisor,
+                     "/api/task": self.app.task_action}
             fn = route.get(path)
             if fn is None:
                 return self._json({"error": "unknown endpoint"}, 404)

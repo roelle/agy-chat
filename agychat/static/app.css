@@ -171,3 +171,41 @@ button { font: inherit; cursor: pointer; }
 .agents li { cursor: pointer; }
 .agents .model.unavailable { color: #ff9c9c; border-color: #8a3a3a; border-style: solid; }
 .team-label { color: var(--side-dim); font-size: 12px; margin-right: -6px; }
+
+/* resizable panes */
+.splitter { flex: none; position: relative; z-index: 5; }
+.splitter.v { width: 6px; margin: 0 -3px; cursor: col-resize; }
+.splitter.h { height: 6px; margin: -3px 0; cursor: row-resize; }
+.splitter:hover, body.dragging .splitter.active { background: var(--accent); opacity: .5; }
+body.dragging { user-select: none; }
+body.dragging.col { cursor: col-resize; } body.dragging.row { cursor: row-resize; }
+.left section.discourse { flex: 1 1 50%; }
+
+/* archived channels */
+.sub-head { padding-top: 4px; }
+.disclose { background: none; border: 0; color: var(--side-dim); font: inherit; text-transform: uppercase; letter-spacing: .5px; padding: 0; }
+.nav.archived li { color: var(--side-dim); }
+.nav.archived li.deleted { text-decoration: line-through; }
+.banner { padding: 8px 18px; background: var(--code); color: var(--dim); border-bottom: 1px solid var(--line); font-size: 13px; display: flex; gap: 10px; align-items: center; }
+.btn.danger { background: var(--bad); }
+.modal-actions .left-actions { margin-right: auto; display: flex; gap: 8px; }
+
+/* tasks a channel is about */
+.view-tasks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.task-chip { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px 1px 6px; color: var(--fg);
+             text-decoration: none; display: inline-flex; gap: 5px; align-items: center; background: var(--bg); }
+.task-chip:hover { border-color: var(--accent); }
+.st { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: #9aa2ad; }
+.st.running, .st.claimed { background: var(--ok); } .st.blocked { background: var(--bad); }
+.st.review { background: var(--review); } .st.icebox { background: #7fb3d5; } .st.done { background: var(--dim); }
+.task .t a { color: inherit; text-decoration: none; } .task .t a:hover { text-decoration: underline; }
+.task .chan { color: var(--accent); cursor: pointer; }
+.mk-task { margin-left: 10px; }
+
+/* mentions of the operator */
+.mention.me { background: var(--accent); color: #fff; }
+.msg.mentions-me { border-left: 3px solid var(--accent); background: rgba(58,111,247,.05); }
+.nav li .at { margin-left: auto; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); border-radius: 999px; padding: 0 6px; }
+.nav li .at + .count { margin-left: 6px; }
+.agents .alias-of { color: var(--side-dim); font-weight: 400; font-size: 11px; }
+.modal-card textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; }

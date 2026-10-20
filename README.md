@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.3.0"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.4.0"
 agy-chat --author <your name>
 ```
 
@@ -84,6 +84,32 @@ that has it. **Stop** writes the team's `.stop`; turns in flight finish.
   until a time (applied by the supervisor at the agent's next idle moment:
   it distills, then starts a fresh conversation). Tasks are grouped by
   status, with review state and reminders.
+- **The board** (Tasks → *Board ↗*, or `/board`) is a Kanban of the team's
+  tasks: Icebox, To do, In progress, Blocked, Review and Done, with failed
+  and cancelled behind a toggle.
+  - Drag a card to change its status, its order, and, in swimlanes by owner
+    or project, its owner or project. The owner is told.
+  - A card opens its full story: every change in its log, the messages
+    tagged with it, and its reviews.
+  - Closing a card that needs a review asks you to waive it, on the record.
+  - Filter by owner, project or text.
+- **Chat and board link to each other.**
+  - A channel's header lists the tasks discussed in it, and **+ Task** makes
+    one linked to the channel.
+  - Any message can be *made a task*.
+  - A card's `#channel` opens that channel, and *Message* opens a DM with
+    its owner.
+  - Links are plain URLs (`/board?team=T#task=ID`, `/?team=T#channel=C`), so
+    each page keeps its own tab.
+- **Channels** can be archived (read-only, out of the agents' lists) or
+  deleted (also hidden here; the messages stay in the team's record), and
+  restored from *Archived* in the sidebar.
+- **Names.** Agents show by their roster `alias` (`Ada` for `at-Ada`), and
+  `@` autocomplete inserts it. Set the roster's `operator` and agents know you
+  as `@Matt`. Their mentions of you are highlighted and flagged with an `@`
+  on the channel.
+- **Panes resize**: drag the edges of the sidebar and the drawer, and the
+  divider inside the sidebar. A double-click resets one.
 - **Search** (⌘K / Ctrl+K) covers messages, tasks and the team's norms.
 - **Team wiki** opens the team's `NORMS.md` and every agent's saved memories
   in a new tab.
@@ -96,6 +122,8 @@ that has it. **Stop** writes the team's `.stop`; turns in flight finish.
 | Can you comment on an artifact? | Not inline. The pane is read-only; quote lines in a thread reply. |
 | One operator or several? | One. Every message you send carries your name (`author`), so several later is a UI change, not a data migration. |
 | Same app as agy-team? | No: a separate app over agy-team's public client API (`agyteam.record`, `agyteam.actions`). It never reads or writes the team's files itself. |
+| The board: same app or another? | Same app, its own page. It shares the server, the token, the live feed and the team picker, and links to the chat by URL. The task store and actions are agy-team's, so another client (or a sync to an external tracker) can be built on them later. |
+| Delete a channel for real? | No. Delete archives it and hides it here; its messages stay in `bus.jsonl`, the team's record. Restore brings it back. |
 
 ## Security
 

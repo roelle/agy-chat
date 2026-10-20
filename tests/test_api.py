@@ -305,3 +305,72 @@ def test_the_command_line_takes_host_and_no_open(team):
     finally:
         p.kill()
         p.wait()
+
+
+# --- channels: archive, delete, restore ------------------------------------------
+
+def test_a_channel_can_be_archived_deleted_and_restored(server):
+    app, port, td, _ = server
+    call(port, "POST", "/api/channel", {"team": "demo", "action": "create", "name": "old", "members": ["coder"]}, token=app.token)
+    call(port, "POST", "/api/post", {"team": "demo", "channel": "old", "content": "keep this"}, token=app.token)
+    status, _ = call(port, "POST", "/api/channel", {"team": "demo", "action": "archive", "name": "old"}, token=app.token)
+    assert status == 200
+    status, err = call(port, "POST", "/api/post", {"team": "demo", "channel": "old", "content": "x"}, token=app.token)
+    assert status == 400 and "archived" in err["error"]
+    _, r = call(port, "GET", "/api/messages?team=demo&channel=old", token=app.token)
+    assert [m["content"] for m in r["messages"]] == ["keep this"], "archived is read-only, not hidden"
+    call(port, "POST", "/api/channel", {"team": "demo", "action": "delete", "name": "old"}, token=app.token)
+    _, r = call(port, "GET", "/api/messages?team=demo&channel=old", token=app.token)
+    assert r["messages"] == []
+    assert "keep this" in (td / "bus.jsonl").read_text(), "the record keeps it"
+    call(port, "POST", "/api/channel", {"team": "demo", "action": "restore", "name": "old"}, token=app.token)
+    _, r = call(port, "GET", "/api/messages?team=demo&channel=old", token=app.token)
+    assert [m["content"] for m in r["messages"]] == ["keep this"]
+
+
+# --- tasks and the board -----------------------------------------------------------
+
+def test_a_task_made_here_is_linked_moved_and_explained(server):
+    app, port, td, _ = server
+    call(port, "POST", "/api/channel", {"team": "demo", "action": "create", "name": "billing", "members": ["coder", "qa"]}, token=app.token)
+    status, t = call(port, "POST", "/api/task", {"team": "demo", "action": "create", "project": "billing",
+                                                 "title": "fix allocate", "owner": "coder", "channel": "billing"}, token=app.token)
+    assert status == 200 and t["channel"] == "billing", t
+    status, t2 = call(port, "POST", "/api/task", {"team": "demo", "action": "update", "id": t["id"],
+                                                  "status": "icebox", "rank": 3}, token=app.token)
+    assert status == 200 and t2["status"] == "icebox" and t2["rank"] == 3
+    told = [json.loads(x) for x in (td / "inbox" / "coder.jsonl").read_text().splitlines()]
+    assert any("moved your task" in m["content"] for m in told)
+    _, d = call(port, "GET", f"/api/task?team=demo&id={t['id']}", token=app.token)
+    assert [e["kind"] for e in d["history"]] == ["created", "updated"]
+    assert any(m.get("channel") == "billing" for m in d["messages"]), "the channel's notice is tagged with the task"
+    _, st = call(port, "GET", "/api/state?team=demo", token=app.token)
+    assert next(x for x in st["tasks"] if x["id"] == t["id"])["channel"] == "billing"
+    _, all_ = call(port, "GET", "/api/tasks?team=demo", token=app.token)
+    assert any(x["id"] == t["id"] for x in all_["tasks"])
+
+
+def test_the_board_page_is_served_like_the_chat(server):
+    app, port, *_ = server
+    c = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    c.request("GET", f"/board?token={app.token}", headers={"Host": f"127.0.0.1:{port}"})
+    r = c.getresponse()
+    assert r.status == 200 and b"board.js" in r.read()
+    assert call(port, "GET", "/board")[0] == 401
+
+
+# --- what people are called --------------------------------------------------------
+
+def test_state_carries_aliases_the_operator_and_mentions_of_them(server):
+    app, port, td, _ = server
+    doc = json.loads((td / "roster.json").read_text())
+    doc["operator"] = {"name": "Matt", "handles": ["roellem"]}
+    doc["agents"][1]["alias"] = "Ada"
+    (td / "roster.json").write_text(json.dumps(doc))
+    from agyteam import channels
+    channels.create(td, "billing", ["coder"])
+    channels.post(FileTransport("coder"), td, "billing", "@Matt which rounding?")
+    _, st = call(port, "GET", "/api/state?team=demo", token=app.token)
+    assert st["operator"]["name"] == "Matt" and "roellem" in st["operator"]["handles"]
+    assert next(a for a in st["agents"] if a["name"] == "coder")["alias"] == "Ada"
+    assert "c:billing" in st["mentions_of_user"]

@@ -7,6 +7,37 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-20
+
+### Added
+- **The board** (`/board`): the team's tasks as a Kanban.
+  - Columns: Icebox, To do, In progress, Blocked, Review, Done, with failed
+    and cancelled behind a toggle.
+  - Dragging a card changes its status and order, and, in swimlanes by
+    owner or project, its owner or project. The owner is told.
+  - A detail panel shows every change in the card's log, the messages tagged
+    with it, and its reviews, with links back to chat.
+  - Filters by owner, project and text, and a new-task form.
+  - Closing a card that needs a review offers a waiver, recorded as yours.
+  - Drag and drop uses pointer events, so it also works on touch screens.
+- **Chat and board cross-link.** A channel's header lists its tasks;
+  **+ Task** makes one linked to the channel; any message can be made a
+  task; task ids and cards link to each other, by URL.
+- **Archive, delete and restore channels**, from the channel's settings
+  (`Channel…`, which also edits the topic). Archived and deleted channels
+  are under *Archived*. Deleting hides a channel's history here; its
+  messages stay in the team's record.
+- **Aliases and your handle.** Agents show by their roster `alias`, and `@`
+  autocomplete inserts it. With the roster's `operator` set, your messages
+  carry your name, agents' mentions of you are highlighted, and a channel
+  that mentions you is flagged with `@`, including mentions made while you
+  were away.
+- **Resizable panes**: the sidebar, the drawer and the split inside the
+  sidebar; remembered per browser, double-click to reset.
+
+### Changed
+- Requires agy-team 3.5.0.
+
 ## [0.3.0] - 2026-10-20
 
 ### Added
@@ -65,7 +96,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/roelle/agy-chat/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/roelle/agy-chat/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/roelle/agy-chat/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/roelle/agy-chat/compare/v0.1.0...v0.2.0
