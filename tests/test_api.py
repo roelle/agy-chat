@@ -248,3 +248,60 @@ def test_start_runs_the_team_on_its_rosters_runner_not_the_apps(server, monkeypa
         except ProcessLookupError:
             pass
 
+
+
+def test_the_model_list_is_the_teams_runners_not_the_apps(server, monkeypatch):
+    """/api/models asked the app's environment, which names no runner: from a
+    client started without the launcher's exports, the picker was empty."""
+    monkeypatch.syspath_prepend(str(Path(__file__).parent / "support"))
+    monkeypatch.setenv("AGYTEAM_MODEL_CHECK", "1")
+    monkeypatch.delenv("AGYTEAM_RUNNER", raising=False)
+    monkeypatch.delenv("AGYTEAM_RUNNER_CONFIG", raising=False)
+    app, port, td, _ = server
+    doc = json.loads((td / "roster.json").read_text())
+    doc["supervisor"] = {"runner": "team_runner:ListingRunner",
+                         "runner_config": {"offers": ["flash", "pro"]}}
+    (td / "roster.json").write_text(json.dumps(doc))
+    _, r = call(port, "GET", "/api/models?team=demo", token=app.token)
+    assert r["runner"] == "listing-runner"
+    assert [m["id"] for m in r["models"]] == ["flash", "pro"]
+    _, st = call(port, "GET", "/api/state?team=demo", token=app.token)
+    coder = next(a for a in st["agents"] if a["name"] == "coder")
+    assert coder["model"]["available"] is True, coder
+
+
+def test_bound_beyond_loopback_it_answers_to_ip_literals_not_other_names(team):
+    root, td, _ = team
+    app = App(root, [], "matt")
+    httpd = serve(app, "127.0.0.1", 0)
+    app.host = "0.0.0.0"            # as `--host 0.0.0.0` leaves it
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+    try:
+        port = httpd.server_address[1]
+        assert call(port, "GET", "/api/teams", token=app.token, host="192.168.1.20")[0] == 200
+        assert call(port, "GET", "/api/teams", token=app.token, host="evil.example")[0] == 403
+        app.host = "chatbox.lan"    # `--host chatbox.lan`
+        assert call(port, "GET", "/api/teams", token=app.token, host="chatbox.lan")[0] == 200
+        app.host = "127.0.0.1"
+        assert call(port, "GET", "/api/teams", token=app.token, host="192.168.1.20")[0] == 403
+    finally:
+        httpd.shutdown()
+
+
+def test_the_command_line_takes_host_and_no_open(team):
+    import subprocess
+    import sys
+    root, *_ = team
+    p = subprocess.Popen([sys.executable, "-m", "agychat", "--teams-root", str(root),
+                          "--host", "127.0.0.1", "--port", "0", "--no-open"],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        p.stdout.readline()
+        url = p.stdout.readline().split()[-1]
+        assert url.startswith("http://127.0.0.1:") and ":0/" not in url, url
+        port = int(url.split(":")[2].split("/")[0])
+        assert call(port, "GET", "/api/teams", token=url.split("token=")[1])[0] == 200
+    finally:
+        p.kill()
+        p.wait()

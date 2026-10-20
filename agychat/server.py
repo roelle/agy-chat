@@ -4,20 +4,23 @@
     python -m agychat --teams-root DIR      # or another root
     python -m agychat --team-dir PATH       # or a team directory directly
 
-Binds to 127.0.0.1 and prints a URL with a one-time token; the browser keeps
-it as a cookie. Every API call needs it, every state-changing call must be
-JSON (which a cross-site form cannot send), and the Host header must be the
-loopback address -- this server can post as you to a team of agents with
-shells, so a web page you happen to have open must not be able to.
+Binds to 127.0.0.1 (or --host) and prints a URL with a one-time token
+(--open also opens it); the browser keeps it as a cookie. Every API call needs it, every state-changing call must be
+JSON (which a cross-site form cannot send), and the Host header must be a
+name this server answers to (see Handler._local) -- this server can post as
+you to a team of agents with shells, so a web page you happen to have open
+must not be able to.
 
 Reads go through agyteam.record, changes through agyteam.actions; nothing
 here parses or writes the team's files itself.
 """
 import argparse
+import ipaddress
 import json
 import mimetypes
 import os
 import secrets
+import socket
 import sys
 import threading
 import time
@@ -42,6 +45,7 @@ class App:
         self.teams_root = teams_root
         self.team_dirs = team_dirs
         self.author = author
+        self.host = "127.0.0.1"         # what serve() bound; the Host check reads it
         self.token = secrets.token_urlsafe(18)
         self._teams: dict[str, Team] = {}
         self.refresh()
@@ -173,8 +177,26 @@ class Handler(BaseHTTPRequestHandler):
         self._send(status, json.dumps(obj, default=str).encode(), "application/json")
 
     def _local(self) -> bool:
-        host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]")
-        return host in ("127.0.0.1", "localhost", "::1")
+        """Is the Host header one this server answers to?
+
+        The check stops DNS rebinding: a page on evil.example whose name is
+        made to resolve here sends Host: evil.example. Loopback names always
+        pass; so does the name given to --host. Bound beyond loopback, so
+        does any IP literal, which no rebinding attack can produce.
+        """
+        raw = self.headers.get("Host") or ""
+        host = raw[1:raw.index("]")] if raw.startswith("[") and "]" in raw \
+            else raw.rsplit(":", 1)[0]
+        host = host.lower()
+        if host in ("127.0.0.1", "localhost", "::1") or host == self.app.host.lower():
+            return True
+        if is_loopback(self.app.host):
+            return False
+        try:
+            ipaddress.ip_address(host)
+            return True
+        except ValueError:
+            return False
 
     def _authed(self) -> bool:
         c = SimpleCookie(self.headers.get("Cookie") or "")
@@ -223,10 +245,14 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/search":
                 return self._json({"hits": Record(self.app.team(team).dir).search(q.get("q", ""))})
             if path == "/api/models":
+                # The team's runner -- its roster's supervisor block, as
+                # the supervisor Start launches would use -- not this app's
+                # environment, which named no runner and listed nothing.
                 from agyteam import runner as runner_lib
-                cls = runner_lib.runner_class()
+                td = self.app.team(team).dir
+                cls = runner_lib.runner_class(team_dir=td)
                 return self._json({"runner": getattr(cls, "label", None),
-                                   "models": runner_lib.list_models()})
+                                   "models": runner_lib.list_models(team_dir=td)})
             if path == "/api/activity":
                 rows = [e for e in Record(self.app.team(team).dir).events()
                         if e.get("agent") == q.get("agent")]
@@ -291,9 +317,22 @@ class Handler(BaseHTTPRequestHandler):
             return
 
 
+def is_loopback(host: str) -> bool:
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def serve(app: App, host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:
     Handler.app = app
-    httpd = ThreadingHTTPServer((host, port), Handler)
+    app.host = host
+    class Server(ThreadingHTTPServer):
+        address_family = socket.AF_INET6 if ":" in host else socket.AF_INET
+
+    httpd = Server((host, port), Handler)
     httpd.daemon_threads = True
     return httpd
 
@@ -307,17 +346,32 @@ def main(argv=None) -> int:
     ap.add_argument("--teams-root", default=os.environ.get("AGYTEAM_TEAMS_ROOT", "~/agy-teams"))
     ap.add_argument("--team-dir", action="append", default=[],
                     help="a team directory to show (repeatable)")
+    ap.add_argument("--host", default="127.0.0.1",
+                    help="address to listen on (default 127.0.0.1). Anything "
+                         "beyond loopback is plain HTTP: anyone who can reach "
+                         "it and has the printed URL can post as you")
     ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument("--open", action=argparse.BooleanOptionalAction, default=False,
+                    help="open the URL in a browser (default: just print it)")
     ap.add_argument("--author", default=os.environ.get("USER") or "operator",
                     help="your name on what you post")
     a = ap.parse_args(argv)
     if os.environ.get("AGYTEAM_AGENT"):
         sys.exit("agy-chat speaks as the operator; it will not run inside an agent's session")
     app = App(Path(a.teams_root).expanduser(), [Path(p) for p in a.team_dir], a.author)
-    httpd = serve(app, "127.0.0.1", a.port)
+    httpd = serve(app, a.host, a.port)
     names = ", ".join(app.refresh()) or "none found"
+    shown = "127.0.0.1" if a.host in ("0.0.0.0", "::", "") else a.host
+    url = f"http://{'[' + shown + ']' if ':' in shown else shown}:{httpd.server_address[1]}/?token={app.token}"
     print(f"agy-chat: {len(app.refresh())} team(s) ({names})\n"
-          f"open  http://127.0.0.1:{a.port}/?token={app.token}", flush=True)
+          f"open  {url}", flush=True)
+    if not is_loopback(a.host):
+        print(f"agy-chat: listening on {a.host}, beyond this machine, over plain "
+              f"HTTP. Anyone who can reach it and has that URL can post as "
+              f"{a.author} to agents with shells.", file=sys.stderr, flush=True)
+    if a.open:
+        import webbrowser
+        webbrowser.open(url)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

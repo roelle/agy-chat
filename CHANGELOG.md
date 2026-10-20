@@ -7,6 +7,24 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-20
+
+### Added
+- `--host ADDR` to listen somewhere other than 127.0.0.1. The Host check
+  answers to that name, and, bound beyond loopback, to IP literals; a
+  warning says the server is then plain HTTP.
+- `--open` / `--no-open`: open the printed URL in a browser, or not (the
+  default, as before). The printed URL carries the real port, also with
+  `--port 0`.
+
+### Fixed
+- **The model picker lists the team's runner's models.** `/api/models` and
+  each agent's "available" flag asked the app's own environment, which names
+  no runner unless AGYTEAM_RUNNER and AGYTEAM_RUNNER_CONFIG were exported,
+  so the picker was empty or described the default runner. They now read
+  the team's roster `supervisor` block, as Start does. Requires agy-team
+  3.4.0.
+
 ## [0.2.1] - 2026-10-19
 
 ### Fixed
@@ -47,7 +65,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/roelle/agy-chat/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/roelle/agy-chat/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/roelle/agy-chat/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/roelle/agy-chat/releases/tag/v0.1.0

@@ -7,3 +7,12 @@ class TeamRunner(Runner):
 
     def wake(self, agent, message):
         return "ok"
+
+
+class ListingRunner(TeamRunner):
+    """Offers whatever its roster runner_config lists, without a network."""
+    label = "listing-runner"
+
+    @classmethod
+    def list_models(cls, config=None):
+        return [{"id": m, "label": m} for m in (config or {}).get("offers", [])]

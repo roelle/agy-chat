@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.2.1"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.3.0"
 agy-chat --author <your name>
 ```
 
@@ -40,7 +40,9 @@ python3 -m venv .venv
 
 It lists every team under `~/agy-teams` (or `--teams-root DIR`, or
 `--team-dir PATH`, repeatable) and prints a URL with a one-time token. Open
-that URL; the browser keeps the token as a cookie.
+that URL (or pass `--open` and it opens it for you; `--no-open` is the
+default); the browser keeps the token as a cookie. `--host ADDR` and
+`--port N` choose where it listens.
 
 **Start team** launches `python -m agyteam.supervisor --daemon` for the team.
 The runner and manager are the team's own when its roster has a
@@ -97,11 +99,16 @@ that has it. **Stop** writes the team's `.stop`; turns in flight finish.
 
 ## Security
 
-The server binds to 127.0.0.1 only, refuses any request whose `Host` is not
-loopback, requires the token on every API call, and accepts changes only as
-JSON with a `SameSite=Strict` cookie, so a web page you happen to have open
-cannot post as you. It can do anything the operator can, which is a lot on a
-team of agents with shells; do not expose it.
+The server binds to 127.0.0.1 unless you pass `--host`. It refuses any
+request whose `Host` header names something it was not told to answer to,
+which stops DNS rebinding. Loopback names always pass, and so does the name
+given to `--host`. Bound beyond loopback, so does any IP literal. It
+requires the token on every API call, and accepts changes only as JSON with
+a `SameSite=Strict` cookie, so a web page you happen to have open cannot
+post as you. It can do anything the operator can, which is a lot on a team
+of agents with shells. Beyond loopback it is plain HTTP, so anyone who can
+reach it and has the URL is you: put it behind something that adds TLS and
+authentication, or keep it on loopback and tunnel to it.
 
 ## Limits
 
