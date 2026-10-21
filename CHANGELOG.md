@@ -7,6 +7,31 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-20
+
+### Added
+- **Admin page** (`/admin`, "Admin ↗" in the top bar): edit agents (role,
+  default model, principal, tools off, aliases), add and remove them; edit
+  `NORMS.md`; read, write and delete any agent's memories.
+- **Update & restart everything**, one button: updates agy-team and agy-chat
+  where they are installed, restarts every running team gracefully, then
+  restarts agy-chat in place with the same token, so open tabs stay signed
+  in. `python -m agychat.update` does the same from a terminal, without
+  restarting the app.
+- **Restart** per team, in the top bar and on the admin page. No new turns
+  start, the ones in flight finish, and the supervisor restarts on the
+  installed code. The pill shows whom it is waiting for.
+- New channels include **every agent, including ones added later** by
+  default. Untick it to pick agents, with all/none shortcuts.
+- API: `GET /api/admin`, `/api/memories`, `/api/versions`; `POST /api/agent`,
+  `/api/norms`, `/api/memory`, `/api/update`; `restart` on
+  `/api/supervisor`; `everyone` on `/api/channel`.
+
+### Changed
+- Requires agy-team 3.7.1.
+- Stop's confirmation says what it does: the turns in flight are cancelled
+  (their mail comes back on Start). Restart is the way to keep them.
+
 ## [0.4.0] - 2026-10-20
 
 ### Added
@@ -96,7 +121,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/roelle/agy-chat/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/roelle/agy-chat/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/roelle/agy-chat/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/roelle/agy-chat/compare/v0.2.0...v0.2.1

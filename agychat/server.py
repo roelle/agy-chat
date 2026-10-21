@@ -46,8 +46,15 @@ class App:
         self.team_dirs = team_dirs
         self.author = author
         self.host = "127.0.0.1"         # what serve() bound; the Host check reads it
-        self.token = secrets.token_urlsafe(18)
+        # A restart for an update passes the token on, so open tabs stay
+        # signed in. Taken out of the environment at once: supervisors this
+        # app starts inherit it, and an agent with a shell must not be able
+        # to post as the operator.
+        self.token = os.environ.pop("AGYCHAT_TOKEN", "") or secrets.token_urlsafe(18)
         self._teams: dict[str, Team] = {}
+        self.updating: dict = {"state": "idle", "log": []}
+        self.argv: list[str] = []        # main's arguments, for a restart in place
+        self.reexec = self._reexec
         self.refresh()
 
     def refresh(self) -> dict[str, Team]:
@@ -155,10 +162,12 @@ class App:
         action = body.get("action")
         if action == "create":
             return actions.create_channel(t.dir, body.get("name", ""), body.get("members") or [],
-                                          body.get("topic", ""))
+                                          body.get("topic", ""),
+                                          everyone=bool(body.get("everyone")))
         if action == "members":
             return {"members": actions.set_members(t.dir, body["name"], body.get("add") or [],
-                                                   body.get("remove") or [])}
+                                                   body.get("remove") or [],
+                                                   everyone=body.get("everyone"))}
         if action == "topic":
             actions.set_topic(t.dir, body["name"], body.get("topic") or "")
             return {"ok": True}
@@ -201,7 +210,111 @@ class App:
             return t.start_supervisor()
         if body.get("action") == "stop":
             return t.stop_supervisor()
-        raise actions.OperatorError("action is start or stop")
+        if body.get("action") == "restart":
+            return actions.restart(t.dir, now=bool(body.get("now")), by=self.author)
+        raise actions.OperatorError("action is start, stop or restart")
+
+    # --- admin --------------------------------------------------------------------
+
+    def admin(self, team: str) -> dict:
+        t = self.team(team)
+        roster = t.roster()
+        return {"agents": [{k: a.get(k) for k in ("name", *actions.AGENT_FIELDS) if k in a}
+                           for a in roster.get("agents", [])],
+                "fields": list(actions.AGENT_FIELDS),
+                "norms": actions.norms(t.dir)}
+
+    def agent(self, team: str, body: dict) -> dict:
+        t = self.team(team)
+        action, name = body.get("action"), body.get("name") or ""
+        fields = {k: body[k] for k in actions.AGENT_FIELDS if k in body and k != "role"}
+        if action == "add":
+            return actions.add_agent(t.dir, name, role=body.get("role") or "",
+                                     channels="all" if body.get("all_channels", True) else None,
+                                     **fields)
+        if action == "update":
+            if "role" in body:
+                fields["role"] = body["role"]
+            return actions.update_agent(t.dir, name, **fields)
+        if action == "remove":
+            return actions.remove_agent(t.dir, name)
+        raise actions.OperatorError("action is add, update or remove")
+
+    def norms(self, team: str, body: dict) -> dict:
+        return actions.set_norms(self.team(team).dir, body.get("text") or "", by=self.author)
+
+    def memory(self, team: str, body: dict) -> dict:
+        t = self.team(team)
+        if body.get("action") == "save":
+            return actions.save_memory(t.dir, body.get("agent") or "", body.get("name") or "",
+                                       body.get("content") or "", body.get("description") or "",
+                                       by=self.author)
+        if body.get("action") == "delete":
+            return actions.delete_memory(t.dir, body.get("agent") or "", body.get("name") or "")
+        raise actions.OperatorError("action is save or delete")
+
+    # --- update -------------------------------------------------------------------
+
+    def versions(self) -> dict:
+        from agyteam import __version__ as agyteam_version
+        from . import __version__
+        teams = []
+        for name, t in self.refresh().items():
+            beat = Record(t.dir).supervisor() or {}
+            teams.append({"name": name, "running": bool(beat), "version": beat.get("version"),
+                          "restartable": bool(beat.get("restartable")),
+                          "draining": bool(beat.get("draining")),
+                          "inflight": beat.get("inflight") or [], "started": beat.get("started")})
+        return {"agychat": __version__, "agyteam": agyteam_version, "teams": teams,
+                "update": {k: v for k, v in self.updating.items() if k != "log"},
+                "log": self.updating.get("log", [])[-200:]}
+
+    def update(self, team: str, body: dict) -> dict:
+        from . import update as up
+        if body.get("action") == "check":
+            from agyteam import update as atu
+            try:
+                mine = up.plan_self()
+            except Exception as e:
+                mine = {"error": str(e)}
+            theirs = up._agyteam(["--check"], lambda line: None).get("plan")
+            return {"agychat": mine, "agyteam": theirs,
+                    "agyteam_shares_this_env": up.agyteam_shares_this_env(),
+                    "agyteam_checkout": str(atu.checkout() or "")}
+        if body.get("action") != "run":
+            raise actions.OperatorError("action is check or run")
+        if self.updating.get("state") == "running":
+            raise actions.OperatorError("an update is already running")
+        self.updating = {"state": "running", "log": [],
+                         "started": time.strftime("%Y-%m-%d %H:%M:%S")}
+        threading.Thread(target=self._run_update, args=(bool(body.get("now")),),
+                         daemon=True).start()
+        return {"started": True}
+
+    def _run_update(self, now: bool) -> None:
+        from . import update as up
+        log = self.updating["log"].append
+        try:
+            out = up.run([t.dir for t in self.refresh().values()], now=now, log=log)
+        except Exception as e:
+            out = {"error": f"{type(e).__name__}: {e}"}
+        if out.get("error"):
+            log(f"error: {out['error']}")
+            self.updating.update(state="error", error=out["error"])
+            return
+        log("restarting agy-chat…")
+        self.updating.update(state="restarting", result=out)
+        time.sleep(1.5)                  # let the page see "restarting" first
+        self.reexec()
+
+    def _reexec(self) -> None:
+        """Replace this process with a fresh one on the new code: same
+        arguments (less --open), same token, same port."""
+        os.environ["AGYCHAT_TOKEN"] = self.token
+        sys.stdout.flush()
+        sys.stderr.flush()
+        args = [a for a in self.argv if a not in ("--open", "--no-open")]
+        os.execv(sys.executable, [sys.executable, "-m", "agychat", *args])
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -265,14 +378,15 @@ class Handler(BaseHTTPRequestHandler):
         if not self._local():
             return self._send(403, b"local only", "text/plain")
         path, q = self._query()
-        if path in ("/", "/index.html", "/wiki", "/board"):
+        if path in ("/", "/index.html", "/wiki", "/board", "/admin"):
             extra = {}
             if q.get("token") and secrets.compare_digest(q["token"], self.app.token):
                 extra["Set-Cookie"] = f"{COOKIE}={self.app.token}; Path=/; HttpOnly; SameSite=Strict"
             elif not self._authed():
                 return self._send(401, b"Open the URL agy-chat printed (it carries the token).",
                                   "text/plain")
-            page = {"/wiki": "wiki.html", "/board": "board.html"}.get(path, "index.html")
+            page = {"/wiki": "wiki.html", "/board": "board.html",
+                    "/admin": "admin.html"}.get(path, "index.html")
             return self._send(200, (STATIC / page).read_bytes(), "text/html; charset=utf-8", extra)
         if path.startswith("/static/"):
             f = (STATIC / path[len("/static/"):]).resolve()
@@ -318,6 +432,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"norms": Record(t.dir).norms(), "memories": t.memories()})
             if path == "/api/events":
                 return self._events(team)
+            if path == "/api/admin":
+                return self._json(self.app.admin(team))
+            if path == "/api/memories":
+                return self._json({"memories": actions.memories(self.app.team(team).dir,
+                                                                q.get("agent", ""))})
+            if path == "/api/versions":
+                return self._json(self.app.versions())
+        except actions.OperatorError as e:
+            return self._json({"error": str(e)}, 400)
         except LookupError as e:
             return self._json({"error": str(e)}, 404)
         except Exception as e:
@@ -337,7 +460,9 @@ class Handler(BaseHTTPRequestHandler):
             team = body.get("team") or q.get("team", "")
             route = {"/api/post": self.app.post, "/api/channel": self.app.channel,
                      "/api/model": self.app.model, "/api/supervisor": self.app.supervisor,
-                     "/api/task": self.app.task_action}
+                     "/api/task": self.app.task_action, "/api/agent": self.app.agent,
+                     "/api/norms": self.app.norms, "/api/memory": self.app.memory,
+                     "/api/update": self.app.update}
             fn = route.get(path)
             if fn is None:
                 return self._json({"error": "unknown endpoint"}, 404)
@@ -416,6 +541,7 @@ def main(argv=None) -> int:
     if os.environ.get("AGYTEAM_AGENT"):
         sys.exit("agy-chat speaks as the operator; it will not run inside an agent's session")
     app = App(Path(a.teams_root).expanduser(), [Path(p) for p in a.team_dir], a.author)
+    app.argv = list(argv if argv is not None else sys.argv[1:])
     httpd = serve(app, a.host, a.port)
     names = ", ".join(app.refresh()) or "none found"
     shown = "127.0.0.1" if a.host in ("0.0.0.0", "::", "") else a.host

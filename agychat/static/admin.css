@@ -1,0 +1,54 @@
+/* The admin page: agents, norms, memories, update. */
+body.admin-page { display: block; overflow: auto; }
+.admin-page .top { flex-wrap: wrap; row-gap: 6px; }
+.admin-tabs { display: flex; gap: 4px; margin-left: 12px; flex-wrap: wrap; }
+.admin-tabs .tab { background: none; border: 0; color: var(--side-dim); padding: 4px 10px; border-radius: 6px; white-space: nowrap; }
+.admin-tabs .tab.active { background: var(--side-hover); color: #fff; }
+.top-link { margin-left: 0; }
+.admin-tabs + .top-link { margin-left: auto; }
+.admin { max-width: 1100px; margin: 0 auto; padding: 20px 20px 60px; }
+.admin h2 { margin: 4px 0 6px; font-size: 20px; }
+.admin h3 { margin: 22px 0 8px; font-size: 14px; }
+.admin .sub { color: var(--dim); margin: 0 0 14px; }
+.admin code { background: var(--code); padding: 0 4px; border-radius: 4px; }
+.grid { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.grid th, .grid td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.grid th { font-size: 12px; color: var(--dim); font-weight: 600; }
+.grid input[type=text] { width: 100%; padding: 4px 6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--fg); font: inherit; }
+.grid input[type=text]:hover, .grid input[type=text]:focus { border-color: var(--line); background: var(--bg); }
+.grid tr.dirty { background: rgba(58,111,247,.06); }
+.grid .name { font-weight: 600; white-space: nowrap; }
+.grid .row-actions { white-space: nowrap; text-align: right; }
+.row-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row-form input:not([type=checkbox]) { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); }
+.row-form .wide { flex: 1; min-width: 220px; }
+.inline { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--dim); }
+.inline select { padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); }
+#norms { width: 100%; min-height: 55vh; padding: 12px; border: 1px solid var(--line); border-radius: 10px;
+         background: var(--panel); color: var(--fg); font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.actions { display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-top: 10px; }
+.actions.left { justify-content: flex-start; flex-wrap: wrap; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 10px 0; }
+.memory .head { display: flex; gap: 8px; align-items: baseline; }
+.memory .head .name { font-weight: 700; }
+.memory .head .desc { color: var(--dim); flex: 1; }
+.memory pre { white-space: pre-wrap; margin: 8px 0 0; font: 13px/1.45 inherit; }
+.log { background: var(--code); border-radius: 8px; padding: 10px 12px; max-height: 40vh; overflow: auto;
+       white-space: pre-wrap; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.vers td { padding: 2px 12px 2px 0; }
+.state-ok { color: var(--ok); }
+.state-warn { color: var(--warn); }
+.state-bad { color: var(--bad); }
+@media (max-width: 720px) {
+  .admin { padding: 14px 16px 40px; }
+  .admin-tabs { order: 10; width: 100%; margin-left: 0; }
+  .admin-tabs + .top-link { margin-left: auto; }
+  .row-form > * { flex: 1 1 100%; }
+  .row-form .inline, .row-form .btn { flex: 0 0 auto; }
+  .grid thead { display: none; }
+  .grid tr { display: block; border-bottom: 1px solid var(--line); }
+  .grid td { display: block; border: 0; }
+  .grid td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; color: var(--dim); }
+  .admin-page .team-label { display: none; }
+  .admin-page .top { gap: 8px; }
+}

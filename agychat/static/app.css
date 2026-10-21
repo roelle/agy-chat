@@ -209,3 +209,9 @@ body.dragging.col { cursor: col-resize; } body.dragging.row { cursor: row-resize
 .nav li .at + .count { margin-left: 6px; }
 .agents .alias-of { color: var(--side-dim); font-weight: 400; font-size: 11px; }
 .modal-card textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; }
+
+/* members picker: every agent, or a chosen few */
+.modal-card label.everyone { display: flex; gap: 6px; align-items: center; color: var(--fg); font-size: 13px; margin: 2px 0 8px; }
+.checks-tools { font-size: 12px; color: var(--dim); margin-bottom: 4px; }
+.checks-tools .link { background: none; border: 0; padding: 0; margin: 0; cursor: pointer; }
+.top-link { margin-left: 0; }

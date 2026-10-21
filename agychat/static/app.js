@@ -133,6 +133,7 @@ async function openTeam() {
   save("agychat.team", S.team);
   $("#wiki-link").href = `/wiki?team=${encodeURIComponent(S.team)}`;
   $("#board-link").href = boardURL();
+  $("#admin-link").href = `/admin?team=${encodeURIComponent(S.team)}`;
   await refreshState();
   const v = linkedView() || load(`agychat.view.${S.team}`, null);
   const chans = Object.keys(S.state.channels || {});
@@ -163,7 +164,13 @@ async function refreshState() {
 
 function renderSupervisor() {
   const st = S.state; const pill = $("#sup-pill");
-  if (st.supervisor) {
+  if (st.supervisor && st.supervisor.draining) {
+    const b = st.supervisor;
+    pill.textContent = `restarting: waiting for ${(b.inflight || []).join(", ") || "the restart"}`;
+    pill.title = "No new turns start; mail keeps queuing. The supervisor restarts on the installed code when these turns finish.";
+    pill.className = "pill";
+  }
+  else if (st.supervisor) {
     const b = st.supervisor, src = b.source || {};
     pill.textContent = `running (${b.mode || "pid " + b.pid})` + (b.runner ? ` · ${b.runner}` : "") + (b.manager ? ` · manager ${b.manager}` : "");
     // Where the runner came from: "default" on a team that needs another
@@ -176,6 +183,7 @@ function renderSupervisor() {
   else { pill.textContent = "no supervisor: nothing will wake"; pill.className = "pill bad"; }
   $("#sup-start").classList.toggle("hidden", !!st.supervisor);
   $("#sup-stop").classList.toggle("hidden", !st.supervisor);
+  $("#sup-restart").classList.toggle("hidden", !st.supervisor || !!st.supervisor.draining);
 }
 
 function navItem(v, label, extra = "", opts) {
@@ -488,7 +496,13 @@ $("#show-quiet").onchange = renderMessages;
 $("#show-done").onchange = renderTasks;
 $("#archived-toggle").onclick = () => { save("agychat.showArchived", !load("agychat.showArchived", false)); renderSidebar(); };
 $("#sup-start").onclick = async () => { try { const r = await api("/api/supervisor", { action: "start" }); toast(r.started ? `supervisor started (pid ${r.pid})` : r.reason); setTimeout(refreshState, 1500); } catch (e) { toast(e.message, true); } };
-$("#sup-stop").onclick = async () => { if (!confirm("Stop the team? Turns in flight finish first; mail stays queued.")) return; try { await api("/api/supervisor", { action: "stop" }); toast("stopping"); setTimeout(refreshState, 1500); } catch (e) { toast(e.message, true); } };
+$("#sup-restart").onclick = async () => {
+  const b = S.state.supervisor || {};
+  if (!b.restartable) { toast("This supervisor predates graceful restart: Stop and Start it once, or use Admin → Update.", true); return; }
+  if (!confirm(`Restart ${S.team}'s supervisor on the installed code? No new turns start; ${(b.inflight || []).length ? (b.inflight.join(", ") + " finish first") : "nothing is running"}. Mail keeps queuing.`)) return;
+  try { await api("/api/supervisor", { action: "restart" }); toast("restart requested"); setTimeout(refreshState, 1000); } catch (e) { toast(e.message, true); }
+};
+$("#sup-stop").onclick = async () => { if (!confirm("Stop the team? Turns in flight are cancelled; their mail stays queued and is delivered again on Start. To keep them, use Restart.")) return; try { await api("/api/supervisor", { action: "stop" }); toast("stopping"); setTimeout(refreshState, 1500); } catch (e) { toast(e.message, true); } };
 
 // --- modals ---------------------------------------------------------------------------
 
@@ -498,14 +512,27 @@ function modal(html, onSubmit, extraActions = "") {
   const form = $("#modal-card form");
   form.querySelector("[data-cancel]").onclick = () => $("#modal").classList.add("hidden");
   form.onsubmit = async (e) => { e.preventDefault(); try { await onSubmit(new FormData(form), form); $("#modal").classList.add("hidden"); } catch (err) { toast(err.message, true); } };
+  wireChecks(form);
   form.querySelector("input,select")?.focus();
 }
-const agentChecks = (checked = []) => `<div class="checks">${S.state.agents.map((a) =>
-  `<label title="${esc(a.name)}"><input type="checkbox" name="m" value="${esc(a.name)}" ${checked.includes(a.name) ? "checked" : ""}> ${esc(nameOf(a.name))}</label>`).join("")}</div>`;
+const agentChecks = (checked = [], everyone = false) => `
+  <label class="everyone"><input type="checkbox" name="everyone" ${everyone ? "checked" : ""}> Every agent, including ones added later</label>
+  <div class="checks-wrap ${everyone ? "hidden" : ""}"><div class="checks-tools"><button type="button" class="link" data-all>all</button> · <button type="button" class="link" data-none>none</button></div>
+  <div class="checks">${S.state.agents.map((a) =>
+  `<label title="${esc(a.name)}"><input type="checkbox" name="m" value="${esc(a.name)}" ${everyone || checked.includes(a.name) ? "checked" : ""}> ${esc(nameOf(a.name))}</label>`).join("")}</div></div>`;
+// The "every agent" switch and the all/none shortcuts in a members picker.
+function wireChecks(form) {
+  const all = form.querySelector("[name=everyone]"); const wrap = form.querySelector(".checks-wrap");
+  if (!all) return;
+  all.onchange = () => wrap.classList.toggle("hidden", all.checked);
+  form.querySelector("[data-all]").onclick = () => form.querySelectorAll("[name=m]").forEach((c) => (c.checked = true));
+  form.querySelector("[data-none]").onclick = () => form.querySelectorAll("[name=m]").forEach((c) => (c.checked = false));
+}
 
 $("#new-channel").onclick = () => modal(`<h3>New channel</h3><label>Name</label><input type="text" name="name" placeholder="billing" required>
-  <label>Topic</label><input type="text" name="topic" placeholder="optional"><label>Agents in it</label>${agentChecks()}`,
-  async (fd) => { await api("/api/channel", { action: "create", name: fd.get("name"), topic: fd.get("topic"), members: fd.getAll("m") });
+  <label>Topic</label><input type="text" name="topic" placeholder="optional"><label>Agents in it</label>${agentChecks([], true)}`,
+  async (fd) => { await api("/api/channel", { action: "create", name: fd.get("name"), topic: fd.get("topic"),
+                                              everyone: !!fd.get("everyone"), members: fd.getAll("m") });
     await refreshState(); openView({ type: "channel", id: String(fd.get("name")).toLowerCase() }); });
 
 $("#edit-members").onclick = () => {
@@ -515,13 +542,15 @@ $("#edit-members").onclick = () => {
     : `<button type="button" class="btn ghost" data-chan-act="archive">Archive</button>
        <button type="button" class="btn danger" data-chan-act="delete">Delete…</button>`;
   modal(`<h3>#${esc(name)}</h3><label>Topic</label><input type="text" name="topic" value="${esc(c.topic || "")}">
-    <label>Agents in it</label>${agentChecks(before)}
+    <label>Agents in it</label>${agentChecks(before, !!c.everyone)}
     <div class="hint" style="margin-top:10px">Archive: read-only, out of every agent's list, reversible.
     Delete: archive and hide its history here; the messages stay in the team's record, and Restore brings it back.</div>`,
     async (fd) => {
       const after = fd.getAll("m");
       if (fd.get("topic") !== (c.topic || "")) await api("/api/channel", { action: "topic", name, topic: fd.get("topic") });
-      await api("/api/channel", { action: "members", name, add: after.filter((x) => !before.includes(x)), remove: before.filter((x) => !after.includes(x)) });
+      if (fd.get("everyone")) { if (!c.everyone) await api("/api/channel", { action: "members", name, everyone: true }); }
+      else await api("/api/channel", { action: "members", name, everyone: false,
+                                       add: after.filter((x) => !before.includes(x)), remove: before.filter((x) => !after.includes(x)) });
       await refreshState(); openView(S.view);
     }, acts);
 };

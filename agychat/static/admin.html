@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — agy-chat</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/admin.css">
+</head>
+<body class="admin-page">
+<header class="top">
+  <div class="brand">agy<span>admin</span></div>
+  <label class="team-label" for="team">Team</label>
+  <select id="team"></select>
+  <nav class="admin-tabs">
+    <button data-tab="agents" class="tab">Agents</button>
+    <button data-tab="norms" class="tab">Norms</button>
+    <button data-tab="memories" class="tab">Memories</button>
+    <button data-tab="update" class="tab">Update &amp; restart</button>
+  </nav>
+  <a id="chat-link" class="link top-link" target="agy-chat">Chat ↗</a>
+  <a id="board-link" class="link top-link" target="agy-board">Board ↗</a>
+</header>
+
+<main class="admin">
+  <section id="tab-agents" class="pane">
+    <h2>Agents</h2>
+    <p class="sub">Changes go to the roster through agy-team, so a running supervisor adopts them. A
+      removed agent's turn is cancelled; its memories and history stay on disk. Workspaces and other
+      policy fields are edited in <code>roster.json</code>.</p>
+    <table class="grid">
+      <thead><tr><th>Name</th><th>Role</th><th>Default model</th><th>Principal</th>
+        <th title="Tool names this agent may not call, comma-separated">Tools off</th>
+        <th title="Other names it answers to, comma-separated">Aliases</th><th></th></tr></thead>
+      <tbody id="agents"></tbody>
+    </table>
+    <h3>Add an agent</h3>
+    <form id="add-agent" class="row-form">
+      <input name="name" placeholder="name, e.g. at-Ada" required>
+      <input name="role" placeholder="role: what it does" class="wide">
+      <input name="model" placeholder="model (optional)">
+      <label class="inline"><input type="checkbox" name="all_channels" checked> join every channel</label>
+      <button class="btn">Add</button>
+    </form>
+  </section>
+
+  <section id="tab-norms" class="pane hidden">
+    <h2>Norms</h2>
+    <p class="sub"><code>NORMS.md</code> is part of every agent's brief. An agent reads it when a
+      conversation starts, so a change reaches each agent on its next fresh conversation
+      (<code>python -m agyteam.supervisor --cycle-all</code> makes that now).</p>
+    <textarea id="norms" spellcheck="false"></textarea>
+    <div class="actions"><span id="norms-state" class="sub"></span><button id="save-norms" class="btn">Save norms</button></div>
+  </section>
+
+  <section id="tab-memories" class="pane hidden">
+    <h2>Memories</h2>
+    <p class="sub">Each agent's own memory. What you write here it reads as its own, marked as
+      written by the operator.</p>
+    <div class="row-form"><label class="inline">Agent <select id="mem-agent"></select></label>
+      <button id="new-memory" class="btn small ghost">+ Memory</button></div>
+    <div id="memories"></div>
+  </section>
+
+  <section id="tab-update" class="pane hidden">
+    <h2>Update &amp; restart</h2>
+    <p class="sub">Update brings agy-team and agy-chat to their newest code, then restarts every
+      running team <strong>gracefully</strong>: no new turns start, mail keeps queuing, the turns in
+      flight finish, and each supervisor restarts itself on the new code. Then agy-chat restarts
+      and this page reloads. Nobody has to catch the team idle.</p>
+    <div id="versions" class="card"></div>
+    <div class="actions left">
+      <button id="check" class="btn ghost">Check for updates</button>
+      <button id="run-update" class="btn">Update &amp; restart everything</button>
+      <label class="inline"><input type="checkbox" id="now"> cancel turns in flight instead of waiting (their mail goes back)</label>
+    </div>
+    <pre id="check-out" class="log hidden"></pre>
+    <h3>Log</h3>
+    <pre id="log" class="log">(nothing yet)</pre>
+  </section>
+</main>
+
+<div id="modal" class="modal hidden"><div class="modal-card" id="modal-card"></div></div>
+<div id="toast" class="toast hidden"></div>
+<script src="/static/admin.js"></script>
+</body>
+</html>

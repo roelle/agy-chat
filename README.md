@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.4.0"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.5.0"
 agy-chat --author <your name>
 ```
 
@@ -55,7 +55,32 @@ each came from. It uses `AGYTEAM_PYTHON`
 if set, else the virtualenv of an agy-team checkout it was installed from,
 else its own interpreter -- so to run teams on the SDK runner, install
 `agyteam[sdk]` into the same environment or point `AGYTEAM_PYTHON` at one
-that has it. **Stop** writes the team's `.stop`; turns in flight finish.
+that has it. **Stop** writes the team's `.stop`, which cancels the turns in
+flight; their mail is delivered again on Start. **Restart** keeps them: the
+supervisor starts no new turns, lets the ones in flight finish (the pill says
+whom it is waiting for), then restarts itself on the installed code.
+
+## Admin
+
+**Admin ↗** in the top bar opens a page with four tabs:
+
+- **Agents**: change an agent's role, default model, principal flag, tools
+  it may not call and aliases; add an agent (it joins every channel unless
+  you untick that) or remove one. Changes go through agy-team's roster
+  history, so a running supervisor adopts them instead of putting them back.
+- **Norms**: edit `NORMS.md`. Agents read it when a conversation starts.
+- **Memories**: read, write and delete any agent's memories.
+- **Update & restart**: the versions running, a check for updates, a
+  Restart per team, and **Update & restart everything**. That updates
+  agy-team and agy-chat where they are installed (a checkout fast-forwards,
+  a pip install moves to the newest release), restarts every running team
+  gracefully, then restarts agy-chat in place; the page reloads itself and
+  stays signed in. The same from a terminal: `python -m agychat.update`
+  (it does not restart the app), or `python -m agyteam.update` for agy-team
+  alone.
+
+New channels include **every agent, including ones added later**, unless you
+untick that and pick some.
 
 ## How it behaves
 
@@ -142,7 +167,9 @@ authentication, or keep it on loopback and tunnel to it.
 
 - Unread markers are per browser (local storage), not shared.
 - Search is substring search over the record, not an index.
-- A team's runner is set in its roster, not picked in the app.
+- A team's runner and policy fields (workspaces, path rules) are set in its
+  roster file, not in the app.
+- Update refuses a checkout with local changes rather than overwrite them.
 - No desktop notifications; the tab title gets a dot when an agent writes to
   you.
 
@@ -154,7 +181,9 @@ authentication, or keep it on loopback and tunnel to it.
 
 Starts the real server on a spare port against a temporary team and drives
 it over HTTP: the token and Host checks, mention-only waking, threads, DMs,
-channels, models, artifact confinement, the live feed, search and the wiki.
+channels, models, artifact confinement, the live feed, search and the wiki,
+and the admin API: agents, norms, memories, everyone-channels, restart and
+update.
 
 ## Versioning
 
