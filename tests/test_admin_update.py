@@ -105,3 +105,49 @@ def test_the_admin_page_is_served(server):
     c.request("GET", f"/admin?token={app.token}", headers={"Host": f"127.0.0.1:{port}"})
     r = c.getresponse()
     assert r.status == 200 and b"agy<span>admin" in r.read()
+
+
+def test_memories_come_with_their_history_and_an_archive_to_restore_from(server):
+    app, port, td, _ = server
+    for content in ("make all", "make all; make test"):
+        call(port, "POST", "/api/memory", {"team": "demo", "action": "save", "agent": "coder",
+                                           "name": "build", "content": content}, token=app.token)
+    _, m = call(port, "GET", "/api/memories?team=demo&agent=coder", token=app.token)
+    [b] = m["memories"]
+    assert b["revisions"] == 2 and b["reads"] == 0 and b["created"] and "make test" in b["content"]
+    call(port, "POST", "/api/memory", {"team": "demo", "action": "delete", "agent": "coder",
+                                       "name": "build"}, token=app.token)
+    _, m = call(port, "GET", "/api/memories?team=demo&agent=coder", token=app.token)
+    assert m["memories"] == [] and [a["name"] for a in m["archived"]] == ["build"]
+    call(port, "POST", "/api/memory", {"team": "demo", "action": "restore", "agent": "coder",
+                                       "id": m["archived"][0]["id"]}, token=app.token)
+    _, m = call(port, "GET", "/api/memories?team=demo&agent=coder", token=app.token)
+    assert [x["name"] for x in m["memories"]] == ["build"] and m["archived"] == []
+
+
+def test_a_review_is_queued_only_with_a_supervisor_running(server):
+    app, port, td, _ = server
+    call(port, "POST", "/api/memory", {"team": "demo", "action": "save", "agent": "qa",
+                                       "name": "x", "content": "y"}, token=app.token)
+    status, err = call(port, "POST", "/api/memory", {"team": "demo", "action": "review",
+                                                     "agent": "qa"}, token=app.token)
+    assert status == 400 and "no supervisor" in err["error"]
+    (td / "supervisor.json").write_text(json.dumps({
+        "pid": os.getpid(), "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}))
+    status, r = call(port, "POST", "/api/memory", {"team": "demo", "action": "review",
+                                                   "agent": "qa"}, token=app.token)
+    assert status == 200 and r["queued"]
+    _, m = call(port, "GET", "/api/memories?team=demo&agent=qa", token=app.token)
+    assert m["review_queued"]
+
+
+def test_lessons_in_common_are_offered_as_norm_candidates(server):
+    app, port, *_ = server
+    lesson = ("Drive the real code path in review: a test against a static mock passed while "
+              "the deployed binary failed, so run the actual binary end to end before approving")
+    for agent in ("tpm", "coder", "qa"):
+        call(port, "POST", "/api/memory", {"team": "demo", "action": "save", "agent": agent,
+                                           "name": f"{agent}-real-path", "content": lesson,
+                                           "description": "drive the real path"}, token=app.token)
+    _, r = call(port, "GET", "/api/norm_candidates?team=demo", token=app.token)
+    assert len(r["groups"]) == 1 and r["groups"][0]["agents"] == ["coder", "qa", "tpm"]

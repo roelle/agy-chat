@@ -7,6 +7,25 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-22
+
+### Added
+- **Memory history** on the admin page's Memories tab: each memory's age,
+  revisions, reads and last read, and its why. Sort by least read, most
+  read, oldest or most revised, or show only those never read.
+- **Archive and restore**: what an agent or the operator deleted, or a
+  review merged away, with Restore.
+- **Memory reviews**: the recent ones, with what changed and the agent's
+  summary, and **Review now** to queue one for the running supervisor.
+- **Lessons in common** on the Norms tab: the same lesson in three or more
+  agents' memories, with Draft to start a norm from it.
+- API: `GET /api/memories` returns history, archive, recent reviews and
+  whether a review is queued; `GET /api/norm_candidates`;
+  `POST /api/memory` gains `restore` and `review`.
+
+### Changed
+- Requires agy-team 3.8.0.
+
 ## [0.5.0] - 2026-10-20
 
 ### Added
@@ -121,7 +140,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/roelle/agy-chat/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/roelle/agy-chat/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/roelle/agy-chat/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/roelle/agy-chat/compare/v0.2.1...v0.3.0

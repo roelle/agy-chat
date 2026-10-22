@@ -243,15 +243,38 @@ class App:
     def norms(self, team: str, body: dict) -> dict:
         return actions.set_norms(self.team(team).dir, body.get("text") or "", by=self.author)
 
+    def memories(self, team: str, agent: str) -> dict:
+        """One agent's memories with their history, its archive, and its
+        recent memory reviews."""
+        t = self.team(team)
+        rec = Record(t.dir)
+        content = {m["name"]: m["content"] for m in actions.memories(t.dir, agent)}
+        stats = rec.memory_stats(agent)
+        from agyteam.memory import extract_provenance
+        for m in stats:
+            _, why, body = extract_provenance(content.get(m["name"], ""))
+            m["content"], m["why"] = body, why or ""
+        reviews = [e for e in rec.events("memory_review") if e.get("agent") == agent][-5:]
+        queued = any(r.get("action") == "review" and r.get("agent") == agent
+                     for r in _distill_queue().pending(t.dir))
+        return {"memories": stats, "archived": rec.memory_archive(agent),
+                "reviews": list(reversed(reviews)), "review_queued": queued}
+
     def memory(self, team: str, body: dict) -> dict:
         t = self.team(team)
+        if body.get("action") == "restore":
+            return actions.restore_memory(t.dir, body.get("agent") or "", body.get("id") or "",
+                                          by=self.author)
+        if body.get("action") == "review":
+            return actions.review_memory(t.dir, body.get("agent") or "", by=self.author)
         if body.get("action") == "save":
             return actions.save_memory(t.dir, body.get("agent") or "", body.get("name") or "",
                                        body.get("content") or "", body.get("description") or "",
                                        by=self.author)
         if body.get("action") == "delete":
-            return actions.delete_memory(t.dir, body.get("agent") or "", body.get("name") or "")
-        raise actions.OperatorError("action is save or delete")
+            return actions.delete_memory(t.dir, body.get("agent") or "", body.get("name") or "",
+                                         by=self.author)
+        raise actions.OperatorError("action is save, delete, restore or review")
 
     # --- update -------------------------------------------------------------------
 
@@ -315,6 +338,11 @@ class App:
         sys.stderr.flush()
         args = [a for a in self.argv if a not in ("--open", "--no-open")]
         os.execv(sys.executable, [sys.executable, "-m", "agychat", *args])
+
+
+def _distill_queue():
+    from agyteam import distill_queue
+    return distill_queue
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -435,8 +463,9 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/admin":
                 return self._json(self.app.admin(team))
             if path == "/api/memories":
-                return self._json({"memories": actions.memories(self.app.team(team).dir,
-                                                                q.get("agent", ""))})
+                return self._json(self.app.memories(team, q.get("agent", "")))
+            if path == "/api/norm_candidates":
+                return self._json({"groups": Record(self.app.team(team).dir).norm_candidates()})
             if path == "/api/versions":
                 return self._json(self.app.versions())
         except actions.OperatorError as e:

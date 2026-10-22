@@ -51,15 +51,34 @@
       (<code>python -m agyteam.supervisor --cycle-all</code> makes that now).</p>
     <textarea id="norms" spellcheck="false"></textarea>
     <div class="actions"><span id="norms-state" class="sub"></span><button id="save-norms" class="btn">Save norms</button></div>
+    <h3>Lessons in common</h3>
+    <p class="sub">The same lesson in three or more agents' memories, matched by wording: each is a
+      candidate for a norm, if it is one. "Draft" adds a line to the editor above for you to
+      rewrite; nothing is saved until you save.</p>
+    <div id="candidates"><p class="sub">Looking…</p></div>
   </section>
 
   <section id="tab-memories" class="pane hidden">
     <h2>Memories</h2>
-    <p class="sub">Each agent's own memory. What you write here it reads as its own, marked as
-      written by the operator.</p>
+    <p class="sub">Each agent's own memory, with its history: how long it has been known, how often
+      it was rewritten, how often the agent read it back. What you write here it reads as its own,
+      marked as written by the operator. A <strong>review</strong> is a turn in which the agent goes
+      over its memories and merges, rewrites and deletes; it runs on its own at milestones and weekly,
+      between the agent's turns. Nothing removed is lost: it is in the archive below.</p>
     <div class="row-form"><label class="inline">Agent <select id="mem-agent"></select></label>
-      <button id="new-memory" class="btn small ghost">+ Memory</button></div>
+      <label class="inline">Sort <select id="mem-sort">
+        <option value="name">name</option><option value="least">least read</option>
+        <option value="most">most read</option><option value="oldest">oldest</option>
+        <option value="revised">most revised</option></select></label>
+      <label class="inline"><input type="checkbox" id="mem-unread"> never read</label>
+      <button id="new-memory" class="btn small ghost">+ Memory</button>
+      <button id="review-now" class="btn small">Review now</button></div>
+    <div id="mem-summary" class="sub"></div>
     <div id="memories"></div>
+    <h3>Recent reviews</h3>
+    <div id="reviews"></div>
+    <h3>Archive</h3>
+    <div id="archive"></div>
   </section>
 
   <section id="tab-update" class="pane hidden">

@@ -107,7 +107,26 @@ $("#add-agent").onsubmit = async (e) => {
 function renderNorms() {
   $("#norms").value = S.admin.norms || "";
   $("#norms-state").textContent = S.admin.norms ? "" : "No NORMS.md yet.";
+  loadCandidates();
 }
+async function loadCandidates() {
+  let groups = [];
+  try { groups = (await api(`/api/norm_candidates?${q({})}`)).groups; } catch (err) { toast(err.message, true); }
+  S.candidates = groups;
+  $("#candidates").innerHTML = groups.map((g, i) => `<div class="card"><div class="head">
+      <strong>${esc(g.agents.join(", "))}</strong><span class="sub"> · ${esc(g.terms.slice(0, 6).join(", "))}</span>
+      <button class="btn small ghost" data-draft="${i}" style="float:right">Draft</button></div>
+      <ul>${g.memories.map((m) => `<li><strong>${esc(m.agent)}</strong>: ${esc(m.name)} <span class="sub">— ${esc(m.description)}</span></li>`).join("")}</ul></div>`).join("")
+    || `<p class="sub">None: no lesson is in three or more agents' memories in similar words.</p>`;
+}
+$("#candidates").addEventListener("click", (e) => {
+  const i = e.target.closest("[data-draft]")?.dataset.draft; if (i == null) return;
+  const g = S.candidates[+i]; const ta = $("#norms");
+  const line = `- ${g.memories[0].description} (learned separately by ${g.agents.join(", ")}: rewrite as the rule you want)`;
+  ta.value = ta.value.replace(/\s*$/, "\n") + line + "\n";
+  ta.focus(); ta.scrollTop = ta.scrollHeight;
+  $("#norms-state").textContent = "unsaved changes"; window.scrollTo(0, 0);
+});
 $("#norms").oninput = () => { $("#norms-state").textContent = "unsaved changes"; };
 $("#save-norms").onclick = async () => {
   try { await api("/api/norms", { text: $("#norms").value }); $("#norms-state").textContent = "saved"; toast("norms saved"); }
@@ -116,15 +135,60 @@ $("#save-norms").onclick = async () => {
 
 // --- memories -------------------------------------------------------------------------
 
+const day = (ts) => (ts || "").slice(0, 10);
+function memoryMeta(m) {
+  const since = m.created ? day(m.created) : m.known_since ? `before ${day(m.known_since)}` : "?";
+  return `since ${esc(since)} · ${m.revisions || 0} revision${m.revisions === 1 ? "" : "s"} · `
+    + `${m.reads ? `${m.reads} read${m.reads === 1 ? "" : "s"}, last ${esc(day(m.last_read))}` : `<span class="state-warn">never read</span>`}`;
+}
 async function loadMemories() {
   const agent = $("#mem-agent").value; if (!agent) { $("#memories").innerHTML = ""; return; }
-  try { S.memories = (await api(`/api/memories?${q({ agent })}`)).memories; }
-  catch (err) { toast(err.message, true); S.memories = []; }
+  let r;
+  try { r = await api(`/api/memories?${q({ agent })}`); }
+  catch (err) { toast(err.message, true); r = { memories: [], archived: [], reviews: [] }; }
+  S.mem = r; renderMemories();
+}
+function renderMemories() {
+  const r = S.mem || { memories: [], archived: [], reviews: [] }; const agent = $("#mem-agent").value;
+  const sorts = {
+    name: (a, b) => a.name.localeCompare(b.name),
+    least: (a, b) => (a.reads || 0) - (b.reads || 0) || a.name.localeCompare(b.name),
+    most: (a, b) => (b.reads || 0) - (a.reads || 0),
+    oldest: (a, b) => String(a.created || a.known_since || "").localeCompare(String(b.created || b.known_since || "")),
+    revised: (a, b) => (b.revisions || 0) - (a.revisions || 0),
+  };
+  S.memories = [...r.memories].filter((m) => !$("#mem-unread").checked || !m.reads).sort(sorts[$("#mem-sort").value] || sorts.name);
+  const unread = r.memories.filter((m) => !m.reads).length;
+  $("#mem-summary").textContent = r.memories.length
+    ? `${r.memories.length} memories; ${unread} never read back.` + (r.review_queued ? " A review is queued." : "") : "";
+  $("#review-now").disabled = !!r.review_queued || !r.memories.length;
   $("#memories").innerHTML = S.memories.map((m, i) => `<div class="card memory" data-i="${i}">
     <div class="head"><span class="name">${esc(m.name)}</span><span class="desc">${esc(m.description)}</span>
       <button class="btn small ghost" data-act="edit">Edit</button><button class="btn small ghost" data-act="delete">Delete</button></div>
-    <pre>${esc(m.content)}</pre></div>`).join("") || `<p class="sub">${esc(agent)} has saved nothing yet.</p>`;
+    <div class="meta">${memoryMeta(m)}${m.why ? ` · why: ${esc(m.why)}` : ""}</div>
+    <pre>${esc(m.content)}</pre></div>`).join("") || `<p class="sub">${esc(agent)} has saved nothing${$("#mem-unread").checked ? " unread" : ""}.</p>`;
+  $("#reviews").innerHTML = (r.reviews || []).map((v) => `<div class="card"><div class="head"><strong>${esc(v.ts)}</strong>
+      <span class="sub"> by ${esc(v.by || "?")} · ${v.before} → ${v.after} · ${v.removed?.length || 0} removed, ${v.added?.length || 0} new, ${v.rewritten?.length || 0} rewritten${v.failed ? ' · <span class="state-bad">failed</span>' : ""}</span></div>
+      ${v.summary ? `<pre>${esc(v.summary)}</pre>` : ""}</div>`).join("") || `<p class="sub">No reviews yet.</p>`;
+  $("#archive").innerHTML = (r.archived || []).map((d) => `<div class="card memory">
+      <div class="head"><span class="name">${esc(d.name)}</span><span class="desc">${esc(d.reason)} · ${esc(d.archived)} · by ${esc(d.by)}</span>
+      <button class="btn small ghost" data-restore="${esc(d.id)}">Restore</button></div>
+      <details><summary class="sub">${esc(d.description)}</summary><pre>${esc(d.content)}</pre></details></div>`).join("")
+    || `<p class="sub">Nothing archived.</p>`;
 }
+$("#mem-sort").onchange = renderMemories;
+$("#mem-unread").onchange = renderMemories;
+$("#review-now").onclick = async () => {
+  const agent = $("#mem-agent").value;
+  if (!confirm(`Ask ${agent} to review its memories? It is one turn, run by the supervisor when ${agent} is between turns. Anything it removes is archived.`)) return;
+  try { await api("/api/memory", { action: "review", agent }); toast("review queued"); await loadMemories(); }
+  catch (err) { toast(err.message, true); }
+};
+$("#archive").addEventListener("click", async (e) => {
+  const id = e.target.closest("[data-restore]")?.dataset.restore; if (!id) return;
+  try { await api("/api/memory", { action: "restore", agent: $("#mem-agent").value, id }); toast("restored"); await loadMemories(); }
+  catch (err) { toast(err.message, true); }
+});
 $("#mem-agent").onchange = loadMemories;
 function memoryModal(m) {
   const agent = $("#mem-agent").value;
@@ -142,7 +206,7 @@ $("#memories").addEventListener("click", async (e) => {
   const btn = e.target.closest("button"); if (!btn) return;
   const m = S.memories[+btn.closest(".memory").dataset.i]; const agent = $("#mem-agent").value;
   if (btn.dataset.act === "edit") return memoryModal(m);
-  if (!confirm(`Delete ${agent}'s memory "${m.name}"?`)) return;
+  if (!confirm(`Delete ${agent}'s memory "${m.name}"? A copy goes to the archive.`)) return;
   try { await api("/api/memory", { action: "delete", agent, name: m.name }); toast("deleted"); await loadMemories(); }
   catch (err) { toast(err.message, true); }
 });

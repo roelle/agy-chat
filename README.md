@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.5.0"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.6.0"
 agy-chat --author <your name>
 ```
 
@@ -69,7 +69,16 @@ whom it is waiting for), then restarts itself on the installed code.
   you untick that) or remove one. Changes go through agy-team's roster
   history, so a running supervisor adopts them instead of putting them back.
 - **Norms**: edit `NORMS.md`. Agents read it when a conversation starts.
-- **Memories**: read, write and delete any agent's memories.
+  **Lessons in common** lists lessons three or more agents learned
+  separately, as candidates for a norm. **Draft** puts one in the editor for
+  you to rewrite; nothing is saved until you save.
+- **Memories**: each agent's memories with their history: how long each has
+  been known, how often it was rewritten, how often the agent read it back.
+  Sort by least read or oldest, or show only those never read. Write and
+  delete memories, restore from the archive anything deleted or merged away,
+  see recent memory reviews, and **Review now** to queue one. A review is a
+  turn in which the agent merges, rewrites and deletes its own memories. It
+  also runs on its own at milestones and weekly, between the agent's turns.
 - **Update & restart**: the versions running, a check for updates, a
   Restart per team, and **Update & restart everything**. That updates
   agy-team and agy-chat where they are installed (a checkout fast-forwards,
