@@ -151,3 +151,14 @@ def test_lessons_in_common_are_offered_as_norm_candidates(server):
                                            "description": "drive the real path"}, token=app.token)
     _, r = call(port, "GET", "/api/norm_candidates?team=demo", token=app.token)
     assert len(r["groups"]) == 1 and r["groups"][0]["agents"] == ["coder", "qa", "tpm"]
+
+
+def test_the_favicon_is_served_without_the_token(server):
+    import http.client
+    app, port, *_ = server
+    for path in ("/favicon.ico", "/static/favicon.svg"):
+        c = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+        c.request("GET", path, headers={"Host": f"127.0.0.1:{port}"})
+        r = c.getresponse()
+        assert r.status == 200 and r.getheader("Content-Type") == "image/svg+xml" \
+            and r.read().startswith(b"<svg")

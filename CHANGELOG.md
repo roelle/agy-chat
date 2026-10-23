@@ -7,6 +7,12 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-23
+
+### Added
+- A favicon: a chat bubble on agy-chat's blue, on every page and at
+  `/favicon.ico`.
+
 ## [0.7.0] - 2026-10-23
 
 ### Added
@@ -151,7 +157,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/roelle/agy-chat/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/roelle/agy-chat/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/roelle/agy-chat/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/roelle/agy-chat/compare/v0.4.0...v0.5.0

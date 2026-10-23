@@ -417,6 +417,8 @@ class Handler(BaseHTTPRequestHandler):
             page = {"/wiki": "wiki.html", "/board": "board.html",
                     "/admin": "admin.html"}.get(path, "index.html")
             return self._send(200, (STATIC / page).read_bytes(), "text/html; charset=utf-8", extra)
+        if path == "/favicon.ico":          # what browsers ask for unprompted
+            return self._send(200, (STATIC / "favicon.svg").read_bytes(), "image/svg+xml")
         if path.startswith("/static/"):
             f = (STATIC / path[len("/static/"):]).resolve()
             if STATIC not in f.parents or not f.is_file():
