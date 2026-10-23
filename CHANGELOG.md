@@ -7,6 +7,17 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-23
+
+### Added
+- **Memory model** column on the admin page's Agents tab: the model an
+  agent's distill, memory review and retro turns run on (agy-team's
+  `memory_model`). Empty means the team's setting, shown as the placeholder,
+  or the agent's own model.
+
+### Changed
+- Requires agy-team 3.9.0.
+
 ## [0.6.0] - 2026-10-22
 
 ### Added
@@ -140,7 +151,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/roelle/agy-chat/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/roelle/agy-chat/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/roelle/agy-chat/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/roelle/agy-chat/compare/v0.3.0...v0.4.0

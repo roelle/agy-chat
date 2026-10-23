@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.6.0"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.7.0"
 agy-chat --author <your name>
 ```
 
@@ -64,7 +64,8 @@ whom it is waiting for), then restarts itself on the installed code.
 
 **Admin ↗** in the top bar opens a page with four tabs:
 
-- **Agents**: change an agent's role, default model, principal flag, tools
+- **Agents**: change an agent's role, default model, memory model (for its
+  distill, review and retro turns), principal flag, tools
   it may not call and aliases; add an agent (it joins every channel unless
   you untick that) or remove one. Changes go through agy-team's roster
   history, so a running supervisor adopts them instead of putting them back.

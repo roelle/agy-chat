@@ -222,6 +222,7 @@ class App:
         return {"agents": [{k: a.get(k) for k in ("name", *actions.AGENT_FIELDS) if k in a}
                            for a in roster.get("agents", [])],
                 "fields": list(actions.AGENT_FIELDS),
+                "memory_model": roster.get("memory_model"),
                 "norms": actions.norms(t.dir)}
 
     def agent(self, team: str, body: dict) -> dict:
