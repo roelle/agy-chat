@@ -21,6 +21,7 @@
     <button data-tab="agents" class="tab">Agents</button>
     <button data-tab="norms" class="tab">Norms</button>
     <button data-tab="memories" class="tab">Memories</button>
+    <button data-tab="tasks" class="tab">Tasks</button>
     <button data-tab="update" class="tab">Update &amp; restart</button>
   </nav>
   <section id="tab-agents" class="pane">
@@ -83,6 +84,20 @@
     <div id="reviews"></div>
     <h3>Archive</h3>
     <div id="archive"></div>
+  </section>
+
+  <section id="tab-tasks" class="pane hidden">
+    <h2>Tasks</h2>
+    <p class="sub">Tasks form a tree: a project is a task with tasks under it. Levels say how big a
+      task is: <span id="level-names"></span>. A team can rename them with <code>"task_levels"</code>
+      in its roster.</p>
+    <h3>Project labels into parent tasks</h3>
+    <p class="sub">Each project label becomes a top-level task at level 1, with the label's tasks under
+      it. A label whose tasks are all closed becomes a closed, archived parent, out of view. Labels stay
+      on the tasks.</p>
+    <div class="actions left"><button id="mig-preview" class="btn ghost">Preview</button>
+      <button id="mig-run" class="btn" disabled>Convert</button></div>
+    <div id="mig-out"></div>
   </section>
 
   <section id="tab-update" class="pane hidden">

@@ -392,6 +392,8 @@ function openDrawer(tab) {
 
 async function openThread(id) {
   S.thread = id;
+  const pop = $("#mention-box");               // keep the popover out of what is re-rendered
+  if (pop && pop.closest("#drawer")) { pop.classList.add("hidden"); $("#composer").insertBefore(pop, $("#composer").firstChild); S.ta = null; }
   const { messages } = await api(`/api/messages?${q({ thread: id })}`);
   const root = messages.find((m) => m.id === id) || messages[0];
   const where = root?.channel ? { channel: root.channel } : { to: (root?.from === "user" ? root?.to : root?.from) };
@@ -465,7 +467,7 @@ $("#input").addEventListener("keydown", (e) => {
   if (!$("#mention-box").classList.contains("hidden") && ["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) return mentionKey(e);
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#composer").requestSubmit(); }
 });
-$("#input").addEventListener("input", mentionSuggest);
+$("#input").addEventListener("input", () => { useBox($("#input")); mentionSuggest(); });
 
 // --- emoji ---------------------------------------------------------------------------
 
@@ -498,10 +500,85 @@ $("#emoji-box").addEventListener("click", (e) => {
 });
 document.addEventListener("mousedown", (e) => { if (!e.target.closest("#emoji-box, #emoji")) $("#emoji-box").classList.add("hidden"); });
 
+// The box being typed in -- the message box or a thread's reply box. The
+// suggestion popover moves to whichever it is.
+const TA = () => (S.ta && document.body.contains(S.ta) ? S.ta : $("#input"));
+function useBox(ta) {
+  S.ta = ta;
+  const form = ta.closest("form"); const box = $("#mention-box");
+  if (form && box.parentElement !== form) form.insertBefore(box, form.firstChild);
+}
+document.addEventListener("input", (e) => {
+  if (e.target.matches?.(".thread-compose textarea")) { useBox(e.target); mentionSuggest(); }
+});
+document.addEventListener("keydown", (e) => {
+  if (!e.target.matches?.(".thread-compose textarea")) return;
+  if (!$("#mention-box").classList.contains("hidden") && ["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) return mentionKey(e);
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.target.closest("form").requestSubmit(); }
+});
+
+// --- slash commands -----------------------------------------------------------------
+//
+// "/" at the start of a word lists commands. /task, /project and one command
+// per level name (from the team's task_levels) insert a task, picked by its
+// title, as its id -- shown as the title in the message. The others act.
+
+const LEVEL_DEFAULTS = ["task", "project", "program", "portfolio"];
+function slashCommands() {
+  const names = S.state?.task_levels?.length ? S.state.task_levels : LEVEL_DEFAULTS;
+  const refs = names.map((n, i) => ({ name: n, level: i, hint: `refer to a ${n}` }));
+  if (!refs.some((r) => r.name === "task")) refs.unshift({ name: "task", level: null, hint: "refer to a task" });
+  refs.find((r) => r.name === "task").level = null;          // /task finds any level
+  return [...refs,
+    { name: "new-task", act: () => taskModal(), hint: "make a task in this channel" },
+    { name: "bookmark", act: () => S.view?.type === "channel" ? bookmarksModal() : toast("bookmarks belong to a channel", true), hint: "this channel's bookmarks" },
+    { name: "help", act: () => toast("/task, /project … insert a reference; @name wakes; :name for emoji; paste a picture to attach"), hint: "what you can type" }];
+}
+function slashSuggest(before) {
+  const m = before.match(/(?:^|\s)\/([a-z-]*)(?: ([^\n]*))?$/);
+  if (!m) return false;
+  const box = $("#mention-box"); const cmds = slashCommands();
+  if (m[2] === undefined) {
+    const hits = cmds.filter((c) => c.name.startsWith(m[1]));
+    if (!hits.length) { box.classList.add("hidden"); return true; }
+    box.innerHTML = hits.map((c, i) => `<div class="item ${i ? "" : "sel"}" data-cmd="${esc(c.name)}">/${esc(c.name)} <span class="k">${esc(c.hint)}</span></div>`).join("");
+    box.classList.remove("hidden"); return true;
+  }
+  const cmd = cmds.find((c) => c.name === m[1]);
+  if (!cmd || cmd.act) { box.classList.add("hidden"); return !!cmd; }
+  const qy = m[2].toLowerCase();
+  const tasks = (S.state.tasks || []).filter((t) => (cmd.level == null || (t.node?.level ?? t.level ?? 0) === cmd.level)
+    && !t.node?.archived_by && (!qy || (t.title || "").toLowerCase().includes(qy) || t.id.includes(qy)))
+    .sort((a, b) => (TERMINAL.has(a.status) - TERMINAL.has(b.status)) || (b.t_updated || 0) - (a.t_updated || 0)).slice(0, 8);
+  box.innerHTML = tasks.map((t, i) => `<div class="item ${i ? "" : "sel"}" data-ref="${esc(t.id)}"><span class="st ${esc(t.status)}"></span> ${esc(t.title)}
+      <span class="k">${esc((t.node?.path || []).join(" › ") || t.status)}</span></div>`).join("") || `<div class="item">no ${esc(cmd.name)} matches “${esc(m[2])}”</div>`;
+  box.classList.remove("hidden"); return true;
+}
+function slashPick(item) {
+  const ta = TA(); const pos = ta.selectionStart;
+  const before = ta.value.slice(0, pos);
+  if (item.dataset.cmd) {
+    const cmd = slashCommands().find((c) => c.name === item.dataset.cmd);
+    if (cmd.act) {
+      ta.value = before.replace(/\/[a-z-]*$/, "") + ta.value.slice(pos);
+      $("#mention-box").classList.add("hidden"); return cmd.act();
+    }
+    const nb = before.replace(/\/[a-z-]*$/, `/${cmd.name} `);
+    ta.value = nb + ta.value.slice(pos); ta.selectionStart = ta.selectionEnd = nb.length; ta.focus();
+    return slashSuggest(nb);
+  }
+  if (item.dataset.ref) {
+    const nb = before.replace(/\/[a-z-]+ [^\n]*$/, item.dataset.ref + " ");
+    ta.value = nb + ta.value.slice(pos); ta.selectionStart = ta.selectionEnd = nb.length; ta.focus();
+    $("#mention-box").classList.add("hidden");
+  }
+}
+
 // @mention and :emoji: autocomplete
 function mentionSuggest() {
-  const ta = $("#input"); const before = ta.value.slice(0, ta.selectionStart);
+  const ta = TA(); const before = ta.value.slice(0, ta.selectionStart);
   const box = $("#mention-box");
+  if (slashSuggest(before)) return;
   const em = before.match(/(?:^|\s):([a-z_]{2,})$/);
   if (em) {
     const hits = EMOJI.filter(([n]) => n.startsWith(em[1])).slice(0, 8);
@@ -527,7 +604,7 @@ function mentionSuggest() {
   box.classList.remove("hidden");
 }
 function mentionPick(name, emoji) {
-  const ta = $("#input"); const pos = ta.selectionStart;
+  const ta = TA(); const pos = ta.selectionStart;
   if (emoji) {
     const before = ta.value.slice(0, pos).replace(/:([a-z_]*)$/, emoji + " ");
     ta.value = before + ta.value.slice(pos); ta.selectionStart = ta.selectionEnd = before.length;
@@ -540,11 +617,20 @@ function mentionPick(name, emoji) {
 function mentionKey(e) {
   const items = [...document.querySelectorAll("#mention-box .item")]; let i = items.findIndex((x) => x.classList.contains("sel"));
   if (e.key === "Escape") { $("#mention-box").classList.add("hidden"); return e.preventDefault(); }
-  if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); return mentionPick(items[i].dataset.name, items[i].dataset.emoji); }
+  if (e.key === "Enter" || e.key === "Tab") {
+    e.preventDefault(); const it = items[i]; if (!it) return;
+    if (it.dataset.cmd || it.dataset.ref) return slashPick(it);
+    if (it.dataset.name) return mentionPick(it.dataset.name, it.dataset.emoji);
+    return;
+  }
   e.preventDefault(); items[i]?.classList.remove("sel");
   i = (i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length; items[i].classList.add("sel");
 }
-$("#mention-box").addEventListener("mousedown", (e) => { const it = e.target.closest(".item"); if (it) { e.preventDefault(); mentionPick(it.dataset.name, it.dataset.emoji); } });
+$("#mention-box").addEventListener("mousedown", (e) => {
+  const it = e.target.closest(".item"); if (!it) return; e.preventDefault();
+  if (it.dataset.cmd || it.dataset.ref) return slashPick(it);
+  if (it.dataset.name) mentionPick(it.dataset.name, it.dataset.emoji);
+});
 
 // --- live -----------------------------------------------------------------------------
 
@@ -721,20 +807,24 @@ async function channelAction(act, name) {
 function taskModal({ fromMessage } = {}) {
   const v = S.view; const m = fromMessage;
   const channel = m?.channel || (v.type === "channel" ? v.id : "");
-  const projects = [...new Set((S.state.tasks || []).map((t) => t.project).filter(Boolean))];
+  const parents = (S.state.tasks || []).filter((t) => !TERMINAL.has(t.status) && !t.node?.archived_by && (t.node?.level ?? 0) >= 1);
   const open = Object.entries(S.state.channels || {}).filter(([, c]) => !c.archived).map(([n]) => n).sort();
   const title = m ? (m.content || "").split("\n")[0].slice(0, 120) : "";
   const note = m ? `From ${sender(m)}${m.channel ? " in #" + m.channel : ""} at ${m.ts}${m.id ? " (message " + m.id + ")" : ""}:\n${m.content}` : "";
   modal(`<h3>New task</h3><label>Title</label><input type="text" name="title" value="${esc(title)}" required>
-    <label>Project</label><input type="text" name="project" list="projects" value="${esc(channel || projects[0] || "")}" required>
-    <datalist id="projects">${projects.map((p) => `<option value="${esc(p)}">`).join("")}</datalist>
+    <label>Part of <span class="hint">(optional: the larger piece of work it serves)</span></label>
+    <input type="text" name="parent" list="parent-tasks" placeholder="top level">
+    <datalist id="parent-tasks">${parents.map((t) => `<option value="${esc(t.title)}">${esc((t.node?.path || []).concat(t.title).join(" › "))}</option>`).join("")}</datalist>
     <label>Owner</label><select name="owner"><option value="">nobody yet</option>${S.state.agents.map((a) => `<option value="${esc(a.name)}">${esc(nameOf(a.name))}</option>`).join("")}</select>
     <label>Channel</label><select name="channel"><option value="">none</option>${open.map((n) => `<option ${n === channel ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
     <label>Column</label><select name="status"><option value="queued">To do</option><option value="icebox">Icebox</option></select>
     <label>Note</label><textarea name="note" rows="4" style="width:100%">${esc(note)}</textarea>
     <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" name="rr"> requires an approved review to close</label>`,
     async (fd) => {
-      const t = await api("/api/task", { action: "create", title: fd.get("title"), project: fd.get("project"),
+      const pick = String(fd.get("parent") || "").trim();
+      const parent = pick ? (S.state.tasks || []).find((t) => t.id === pick || t.title === pick) : null;
+      if (pick && !parent) throw new Error(`no task called “${pick}”`);
+      const t = await api("/api/task", { action: "create", title: fd.get("title"), parent: parent?.id || null,
         owner: fd.get("owner") || null, channel: fd.get("channel") || null, status: fd.get("status"),
         note: fd.get("note"), requires_review: !!fd.get("rr") });
       toast(`created ${t.id}` + (t.owner && t.status !== "icebox" ? `; ${nameOf(t.owner)} was told` : ""));

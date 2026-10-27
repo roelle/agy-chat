@@ -15,17 +15,19 @@
   <select id="team"></select>
   <input id="filter" type="search" placeholder="Filter cards" autocomplete="off">
   <select id="owner" title="Owner"><option value="">every owner</option></select>
-  <select id="project" title="Project"><option value="">every project</option></select>
+  <select id="level" title="Which level of the work to show"></select>
   <select id="lanes" title="Swimlanes">
     <option value="">no swimlanes</option>
     <option value="owner">lanes by owner</option>
-    <option value="project">lanes by project</option>
+    <option value="parent">lanes by parent</option>
   </select>
+  <label class="toggle top-toggle"><input id="show-archived" type="checkbox"> archived</label>
   <label class="toggle top-toggle"><input id="show-closed" type="checkbox"> failed / cancelled</label>
   <button id="new-task" class="btn small">+ Task</button>
   <nav id="app-nav" class="app-nav"></nav>
 </header>
 
+<div id="scope" class="scope hidden"></div>
 <div class="board-main">
   <div id="board" class="board"></div>
   <div class="splitter v hidden" id="detail-split" data-split="detail"></div>

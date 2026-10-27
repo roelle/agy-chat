@@ -7,6 +7,37 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-27
+
+### Added
+- **The board shows the work as a tree** (agy-team 3.11's task tree):
+  - It shows one level at a time (projects, programs, tasks, or everything)
+    instead of a project filter, and ▸ on a card shows what is under it,
+    with a breadcrumb and a switch between direct children and everything
+    under it.
+  - Cards show their level, priority, progress, how many tasks are under
+    them, and tokens over the whole branch.
+  - Swimlanes by parent; dragging between them moves a card under another
+    task.
+  - A task's detail sets what it is part of, its level, priority and
+    auto-close, lists what is under it, and has **+ Task under it** and
+    **Archive**. **archived** at the top shows archived branches.
+- **`/` commands** in the message box: `/task`, `/project` and one per
+  level name insert a task by title; `/new-task`, `/bookmark`, `/help`.
+- The thread reply box has the same @, `:` and `/` autocomplete as the main
+  box, and Enter sends.
+- Admin → **Tasks**: the team's level names, and turning project labels into
+  parent tasks, with a preview.
+- Chat's new-task form asks what the task is part of instead of requiring a
+  project.
+
+### Fixed
+- `@name` in a direct message, or in a thread under one, woke nobody but the
+  agent the DM was to (agy-team 3.11.1).
+
+### Changed
+- Requires agy-team 3.11.1.
+
 ## [0.9.0] - 2026-10-27
 
 ### Added
@@ -216,7 +247,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/roelle/agy-chat/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/roelle/agy-chat/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/roelle/agy-chat/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/roelle/agy-chat/compare/v0.7.0...v0.7.1

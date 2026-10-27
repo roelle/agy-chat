@@ -85,25 +85,79 @@ async function refresh() {
 
 function fillFilters() {
   const keep = (sel, opts, all) => { const v = sel.value;
-    sel.innerHTML = `<option value="">${all}</option>` + opts.map(([val, label]) => `<option value="${esc(val)}">${esc(label)}</option>`).join("");
-    sel.value = opts.some(([x]) => x === v) ? v : ""; };
+    sel.innerHTML = (all ? `<option value="">${all}</option>` : "") + opts.map(([val, label]) => `<option value="${esc(val)}">${esc(label)}</option>`).join("");
+    sel.value = opts.some(([x]) => x === v) ? v : (all ? "" : opts[0]?.[0] ?? ""); };
   const owners = [...new Set(S.tasks.map((t) => t.owner || ""))].sort().map((o) => [o || "-", nameOf(o)]);
   keep($("#owner"), owners, "every owner");
-  keep($("#project"), [...new Set(S.tasks.map((t) => t.project))].filter(Boolean).sort().map((p) => [p, p]), "every project");
+  // Levels that have open, unarchived work, biggest first; "all" last.
+  const names = S.state.task_levels?.length ? S.state.task_levels : ["task", "project", "program", "portfolio"];
+  const used = [...new Set(S.tasks.filter((t) => !TERMINAL.has(t.status) && !t.node?.archived_by).map(lvl))].sort((a, b) => b - a);
+  const opts = (used.length ? used : [0]).map((n) => [String(n), plural(levelName(n, names))]);
+  const want = $("#level").value || String(load(`agyboard.level.${S.team}`, used.includes(1) ? 1 : used[used.length - 1] ?? 0));
+  $("#level").innerHTML = opts.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join("") + `<option value="all">everything</option>`;
+  $("#level").value = [...opts.map(([v]) => v), "all"].includes(want) ? want : opts[0][0];
 }
+const lvl = (t) => (t.node && typeof t.node.level === "number" ? t.node.level : (t.level ?? 0));
+function levelName(n, names = S.state.task_levels) { return (names && names[n]) || (n === 0 ? "task" : `level-${n}`); }
+const plural = (w) => (/s$/.test(w) ? w : w.endsWith("y") ? w.slice(0, -1) + "ies" : w + "s");
+const byId = (id) => S.tasks.find((t) => t.id === id);
 
 // --- the board ----------------------------------------------------------------
+//
+// Unscoped, it shows one level of the work (projects, say). Scoped to a
+// task -- ▸ on a card, or the breadcrumb -- it shows what is under it:
+// its direct children, or everything under it.
+
+function hashSet(key, val) {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (val) h.set(key, val); else h.delete(key);
+  history.replaceState(null, "", `${location.pathname}${location.search}${h.toString() ? "#" + h : ""}`);
+}
+function scopeId() { return new URLSearchParams(location.hash.slice(1)).get("under") || null; }
+function setScope(id) { hashSet("under", id); render(); }
+function descendants(id) {
+  const out = []; const stack = [...(byId(id)?.node?.children || [])];
+  while (stack.length) { const c = stack.pop(); out.push(c); stack.push(...(byId(c)?.node?.children || [])); }
+  return out;
+}
+function renderScope() {
+  const box = $("#scope"); const id = scopeId(); const t = id && byId(id);
+  box.classList.toggle("hidden", !t);
+  if (!t) return;
+  const chain = []; let cur = t;
+  while (cur) { chain.unshift(cur); cur = cur.parent ? byId(cur.parent) : null; }
+  const deep = load(`agyboard.deep.${S.team}`, false);
+  box.innerHTML = `<a href="#" data-scope="">All ${esc(plural(levelName(Number($("#level").value) || 1)))}</a>`
+    + chain.map((c) => ` › <a href="#" data-scope="${esc(c.id)}">${esc(c.title)}</a>`).join("")
+    + `<span class="scope-tools"><label><input type="radio" name="depth" value="0" ${deep ? "" : "checked"}> directly under it</label>
+       <label><input type="radio" name="depth" value="1" ${deep ? "checked" : ""}> everything under it</label>
+       <button class="btn small ghost" data-open="${esc(t.id)}">Open ${esc(levelName(lvl(t)))}</button></span>`;
+}
 
 function visible() {
-  const f = $("#filter").value.trim().toLowerCase(), owner = $("#owner").value, project = $("#project").value;
-  return S.tasks.filter((t) =>
-    (!owner || (t.owner || "-") === owner) && (!project || t.project === project) &&
-    (!f || [t.title, t.id, t.project, t.owner, nameOf(t.owner), t.note, t.channel].some((x) => (x || "").toLowerCase().includes(f))));
+  const f = $("#filter").value.trim().toLowerCase(), owner = $("#owner").value;
+  const showArchived = $("#show-archived").checked;
+  const id = scopeId();
+  let pool;
+  if (id && byId(id)) {
+    const ids = new Set(load(`agyboard.deep.${S.team}`, false) ? descendants(id) : byId(id).node?.children || []);
+    pool = S.tasks.filter((t) => ids.has(t.id));
+  } else if (f) {
+    pool = S.tasks;                               // a search looks everywhere
+  } else {
+    const level = $("#level").value;
+    pool = level === "all" ? S.tasks : S.tasks.filter((t) => lvl(t) === Number(level));
+  }
+  return pool.filter((t) =>
+    (showArchived || !t.node?.archived_by || (id && t.node.archived_by !== t.id && byId(id)?.node?.archived_by)) &&
+    (!owner || (t.owner || "-") === owner) &&
+    (!f || [t.title, t.id, t.project, t.owner, nameOf(t.owner), t.note, t.channel, ...(t.node?.path || [])].some((x) => (x || "").toLowerCase().includes(f))));
 }
 const order = (a, b) => ((a.rank ?? Infinity) - (b.rank ?? Infinity)) || (b.updated_at || "").localeCompare(a.updated_at || "");
 const cols = () => COLS.filter((c) => !c.optional || $("#show-closed").checked);
 
 function render() {
+  renderScope();
   const lanesBy = $("#lanes").value;
   const rows = visible();
   const lanes = lanesBy ? [...new Set(rows.map((t) => t[lanesBy] || ""))].sort((a, b) => (a === "") - (b === "") || a.localeCompare(b)) : [null];
@@ -111,21 +165,28 @@ function render() {
   board.classList.toggle("no-lanes", !lanesBy);
   board.innerHTML = lanes.map((lane) => {
     const mine = lane === null ? rows : rows.filter((t) => (t[lanesBy] || "") === lane);
-    const head = lane === null ? "" : `<div class="lane-head">${esc(lanesBy === "owner" ? nameOf(lane) : lane || "no project")}<span class="n">${mine.length}</span></div>`;
+    const label = lanesBy === "owner" ? nameOf(lane) : lanesBy === "parent" ? (lane ? byId(lane)?.title || lane : "top level") : lane;
+    const head = lane === null ? "" : `<div class="lane-head">${esc(label)}<span class="n">${mine.length}</span></div>`;
     return `<section class="lane" data-lane="${esc(lane ?? "")}">${head}<div class="cols">${cols().map((c) => {
       const cards = mine.filter((t) => c.statuses.includes(t.status)).sort(order);
       return `<div class="col" data-col="${c.key}" data-lane="${esc(lane ?? "")}">
         <div class="col-head"><span>${esc(c.title)}</span><span class="n">${cards.length}</span></div>
         ${cards.map(cardHTML).join("") || `<div class="empty-col">—</div>`}</div>`;
     }).join("")}</div></section>`;
-  }).join("") || `<div class="empty">No tasks yet. + Task makes one; agents make them with create_task.</div>`;
+  }).join("") || `<div class="empty">${scopeId() ? "Nothing under it yet. + Task adds one here." : "Nothing at this level. Pick another level above, or + Task."}</div>`;
 }
 
 function cardHTML(t) {
   const now = new Date().toISOString();
   const over = t.deadline && t.deadline < now && !TERMINAL.has(t.status);
-  return `<div class="card ${S.selected === t.id ? "selected" : ""}" data-id="${esc(t.id)}">
+  const n = t.node || {}; const L = lvl(t);
+  const kids = (n.children || []).length;
+  const prog = n.total ? `<div class="progress" title="${n.done} of ${n.total} under it closed"><span style="width:${Math.round(100 * n.done / n.total)}%"></span></div>` : "";
+  return `<div class="card ${S.selected === t.id ? "selected" : ""} ${n.archived_by ? "archived" : ""}" data-id="${esc(t.id)}">
+    ${L > 0 || t.priority != null ? `<div class="ckind">${L > 0 ? `<span class="lvl">${esc(levelName(L))}</span>` : ""}${t.priority != null ? `<span class="prio p${t.priority}">P${t.priority}</span>` : ""}</div>` : ""}
     <div class="ct">${esc(t.title)}</div>
+    ${!scopeId() && n.path?.length ? `<div class="cpath">${esc(n.path.join(" › "))}</div>` : ""}
+    ${prog}
     <div class="cm"><span class="who">${esc(nameOf(t.owner))}</span>
       ${$("#lanes").value !== "project" ? `<span class="tag">${esc(t.project || "")}</span>` : ""}
       ${t.channel ? `<a class="chan" href="${chatURL("channel=" + encodeURIComponent(t.channel))}" title="Open the channel">#${esc(t.channel)}</a>` : ""}
@@ -133,7 +194,8 @@ function cardHTML(t) {
       ${t.check_after && !TERMINAL.has(t.status) ? `<span title="reminder ${esc(t.check_after)}">⏰</span>` : ""}
       ${t.requires_review ? `<span class="tag ${t.reviewed ? "ok" : "rev"}">${t.reviewed ? "reviewed" : "needs review"}</span>` : ""}
       ${t.status === "claimed" ? `<span title="claimed, not yet reported running">claimed</span>` : ""}
-      ${t.usage && t.usage.tokens ? `<span class="tokens" title="tokens spent on it (an estimate)">${tokens(t.usage.tokens)}</span>` : ""}
+      ${n.tokens ? `<span class="tokens" title="tokens spent on it and everything under it (an estimate)">${tokens(n.tokens)}</span>` : ""}
+      ${kids ? `<button class="drill" data-scope="${esc(t.id)}" title="Show what is under it">${kids} ▸</button>` : ""}
     </div></div>`;
 }
 
@@ -199,7 +261,8 @@ async function dropCard(id, colKey, lane, beforeId) {
   if (!col.statuses.includes(t.status)) change.status = col.drop;
   const lanesBy = $("#lanes").value;
   if (lanesBy && (t[lanesBy] || "") !== lane) {
-    if (lanesBy === "project" && !lane) return toast("a task needs a project", true);
+    if (lanesBy === "parent" && lane && (lane === id || descendants(id).includes(lane)))
+      return toast("a task cannot go under itself", true);
     change[lanesBy] = lane;
   }
   // Rank: between the neighbours it was dropped between. Cards nobody has
@@ -238,7 +301,7 @@ async function dropCard(id, colKey, lane, beforeId) {
 
 async function openDetail(id) {
   S.selected = id;
-  history.replaceState(null, "", `#task=${encodeURIComponent(id)}`);
+  hashSet("task", id);
   document.querySelectorAll(".card.selected").forEach((c) => c.classList.remove("selected"));
   document.querySelector(`.card[data-id="${CSS.escape(id)}"]`)?.classList.add("selected");
   $("#detail").classList.remove("hidden"); $("#detail-split").classList.remove("hidden");
@@ -251,7 +314,14 @@ async function openDetail(id) {
     <label>Title</label><input type="text" name="title" value="${esc(t.title)}">
     <div class="row"><div><label>Status</label><select name="status">${STATUSES.map((s) => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>
       <div><label>Owner</label><select name="owner"><option value="">unassigned</option>${S.state.agents.map((a) => `<option value="${esc(a.name)}" ${a.name === t.owner ? "selected" : ""}>${esc(nameOf(a.name))}</option>`).join("")}</select></div></div>
-    <div class="row"><div><label>Project</label><input type="text" name="project" value="${esc(t.project)}"></div>
+    <div class="row"><div><label>Part of</label><input type="text" name="parent_pick" list="all-tasks" value="${esc(t.parent ? (byId(t.parent)?.title || t.parent) : "")}" placeholder="top level">
+        <datalist id="all-tasks">${S.tasks.filter((x) => x.id !== t.id && !TERMINAL.has(x.status)).map((x) => `<option value="${esc(x.title)}">${esc(x.id)} · ${esc(levelName(lvl(x)))}</option>`).join("")}</datalist></div>
+      <div><label>Level</label><select name="level"><option value="auto" ${t.level == null ? "selected" : ""}>worked out (${esc(levelName(lvl(t)))})</option>
+        ${(S.state.task_levels || ["task", "project", "program", "portfolio"]).map((nm, i) => `<option value="${i}" ${t.level === i ? "selected" : ""}>${i} · ${esc(nm)}</option>`).join("")}</select></div></div>
+    <div class="row"><div><label>Priority</label><select name="priority"><option value="" ${t.priority == null ? "selected" : ""}>none</option>
+        ${[0, 1, 2, 3, 4].map((n) => `<option value="${n}" ${t.priority === n ? "selected" : ""}>P${n}</option>`).join("")}</select></div>
+      <div><label>&nbsp;</label><label class="inline-check"><input type="checkbox" name="auto_close" ${t.auto_close ? "checked" : ""}> close by itself when everything under it is done</label></div></div>
+    <div class="row"><div><label>Project label</label><input type="text" name="project" value="${esc(t.project)}"></div>
       <div><label>Channel</label><select name="channel"><option value="">none</option>${chans.map((n) => `<option ${n === t.channel ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></div></div>
     <label>Deadline <span class="hint">(e.g. 3d, or 2026-11-01T17:00:00-07:00)</span></label><input type="text" name="deadline" value="${esc(t.deadline || "")}">
     <label>Note</label><textarea name="note" rows="5">${esc(t.note || "")}</textarea>
@@ -261,19 +331,39 @@ async function openDetail(id) {
     <div class="actions"><button class="btn">Save</button>
       ${t.channel ? `<a class="btn ghost" href="${chatURL("channel=" + encodeURIComponent(t.channel))}">Open #${esc(t.channel)}</a>` : ""}
       ${t.owner ? `<a class="btn ghost" href="${chatURL("dm=" + encodeURIComponent(t.owner))}">Message ${esc(nameOf(t.owner))}</a>` : ""}
-      ${t.requires_review && !t.reviewed ? `<button type="button" class="btn ghost" id="waive">Waive review</button>` : ""}</div>
+      ${t.requires_review && !t.reviewed ? `<button type="button" class="btn ghost" id="waive">Waive review</button>` : ""}
+      <button type="button" class="btn ghost" id="add-child">+ Task under it</button>
+      <button type="button" class="btn ghost" id="archive">${t.archived ? "Unarchive" : "Archive"}</button></div>
     ${usageHTML(t.usage)}
     <div class="hint" style="margin-top:6px">created by ${esc(nameOf(t.created_by))} ${esc(fmtTime(t.t_created, t.created_at, "short"))}${t.evidence ? " · evidence: " + esc(t.evidence) : ""}${t.requires_review ? (t.reviewed ? " · reviewed" : " · needs an approved review to close") : ""}</div>
   </form>
+  ${childrenHTML(t)}
   <h4>Timeline</h4><ul class="tl">${d.history.map(historyLine).join("")}</ul>
   <h4>Messages about it (${d.messages.length})</h4><ul class="tl">${d.messages.slice().reverse().map(messageLine).join("") || "<li>none tagged with this task</li>"}</ul>
   <h4>Reviews (${d.reviews.length})</h4><ul class="tl">${d.reviews.map((r) => `<li><span class="when">${esc(fmtTime(r.t, r.ts, "short"))}</span><b>${esc(r.verdict)}</b> by ${esc(nameOf(r.reviewer || r.by))}${r.what ? " — " + esc(r.what) : ""}</li>`).join("") || "<li>none</li>"}</ul>`;
   $("#detail-form").onsubmit = (e) => { e.preventDefault(); saveDetail(t, new FormData(e.target)); };
+  $("#add-child").onclick = () => newTask(t.id);
+  $("#archive").onclick = async () => {
+    const n = descendants(t.id).length;
+    if (!t.archived && !confirm(`Archive “${t.title}”${n ? ` and the ${n} task${n === 1 ? "" : "s"} under it` : ""}? It leaves the board and the agents' task lists; tick "archived" to see it, and Unarchive brings it back.`)) return;
+    try { await api("/api/task", { action: "update", id: t.id, archived: !t.archived }); toast(t.archived ? "unarchived" : "archived"); await refresh(); render(); openDetail(t.id); }
+    catch (err) { toast(err.message, true); }
+  };
   $("#waive")?.addEventListener("click", async () => {
     const reason = prompt("Why ship it without a review? (recorded with the waiver)"); if (reason === null) return;
     try { await api("/api/task", { action: "waive", id: t.id, reason }); toast("review waived"); await refresh(); render(); openDetail(t.id); }
     catch (err) { toast(err.message, true); }
   });
+}
+
+function childrenHTML(t) {
+  const kids = (t.node?.children || []).map(byId).filter(Boolean)
+    .sort((a, b) => TERMINAL.has(a.status) - TERMINAL.has(b.status) || (a.title || "").localeCompare(b.title || ""));
+  const n = t.node || {};
+  const head = n.total ? `Under it (${n.done} of ${n.total} closed${n.tokens ? `, ${tokens(n.tokens)} tokens in all` : ""})` : "Under it";
+  return `<h4>${head}</h4><ul class="tl kids">${kids.map((k) => `<li><span class="stdot ${esc(k.status)}"></span><a href="#" data-task="${esc(k.id)}">${esc(k.title)}</a>
+      <span class="hint">${esc(k.status)} · ${esc(nameOf(k.owner))}${(k.node?.children || []).length ? ` · ${k.node.done}/${k.node.total} under it` : ""}</span></li>`).join("")
+    || "<li class='hint'>nothing yet</li>"}</ul>`;
 }
 
 function historyLine(e) {
@@ -316,6 +406,15 @@ async function saveDetail(t, fd) {
     try { await api("/api/bookmarks", { task: t.id, bookmarks: links }); } catch (err) { return toast(err.message, true); }
   }
   const change = {};
+  const pick = String(fd.get("parent_pick") || "").trim();
+  const parentNow = !pick ? "" : (byId(pick)?.id || S.tasks.find((x) => x.title === pick && x.id !== t.id)?.id);
+  if (pick && !parentNow) return toast(`no task called “${pick}”`, true);
+  if ((parentNow || "") !== (t.parent || "")) change.parent = parentNow || "";
+  const levelNow = fd.get("level");
+  if ((levelNow === "auto" ? null : Number(levelNow)) !== (t.level ?? null)) change.level = levelNow;
+  const prioNow = fd.get("priority");
+  if ((prioNow === "" ? null : Number(prioNow)) !== (t.priority ?? null)) change.priority = prioNow;
+  if (!!fd.get("auto_close") !== !!t.auto_close) change.auto_close = !!fd.get("auto_close");
   for (const k of ["title", "status", "owner", "project", "channel", "deadline", "note"]) {
     const v = (fd.get(k) ?? "").toString();
     if (v !== (t[k] || "")) change[k] = v;
@@ -334,20 +433,23 @@ async function saveDetail(t, fd) {
 }
 
 function closeDetail() {
-  S.selected = null; history.replaceState(null, "", location.pathname + location.search);
+  S.selected = null; hashSet("task", null);
   $("#detail").classList.add("hidden"); $("#detail-split").classList.add("hidden");
   document.querySelectorAll(".card.selected").forEach((c) => c.classList.remove("selected"));
 }
 
 // --- making one -----------------------------------------------------------------
 
-function newTask() {
-  const projects = [...new Set(S.tasks.map((t) => t.project).filter(Boolean))].sort();
+function newTask(parentId) {
+  const parent = parentId || scopeId();
+  const names = S.state.task_levels?.length ? S.state.task_levels : ["task", "project", "program", "portfolio"];
+  const level = !parent && $("#level").value !== "all" ? Number($("#level").value) : null;
   const chans = Object.entries(S.state.channels || {}).filter(([, c]) => !c.archived).map(([n]) => n).sort();
   $("#modal-card").innerHTML = `<form><h3>New task</h3>
     <label>Title</label><input type="text" name="title" required>
-    <label>Project</label><input type="text" name="project" list="projects" value="${esc($("#project").value || projects[0] || "")}" required>
-    <datalist id="projects">${projects.map((p) => `<option value="${esc(p)}">`).join("")}</datalist>
+    ${parent ? `<div class="hint">Under “${esc(byId(parent)?.title || parent)}”</div>` : ""}
+    <label>Level</label><select name="level"><option value="">worked out from what goes under it</option>
+      ${names.map((nm, i) => `<option value="${i}" ${level === i && level > 0 ? "selected" : ""}>${i} · ${esc(nm)}</option>`).join("")}</select>
     <label>Owner</label><select name="owner"><option value="">nobody yet</option>${S.state.agents.map((a) => `<option value="${esc(a.name)}">${esc(nameOf(a.name))}</option>`).join("")}</select>
     <label>Channel</label><select name="channel"><option value="">none</option>${chans.map((n) => `<option>${esc(n)}</option>`).join("")}</select>
     <label>Column</label><select name="status"><option value="queued">To do</option><option value="icebox">Icebox</option></select>
@@ -360,7 +462,8 @@ function newTask() {
   form.onsubmit = async (e) => {
     e.preventDefault(); const fd = new FormData(form);
     try {
-      const t = await api("/api/task", { action: "create", title: fd.get("title"), project: fd.get("project"),
+      const t = await api("/api/task", { action: "create", title: fd.get("title"), parent: parent || null,
+        level: fd.get("level") === "" ? null : Number(fd.get("level")),
         owner: fd.get("owner") || null, channel: fd.get("channel") || null, status: fd.get("status"),
         note: fd.get("note"), requires_review: !!fd.get("rr") });
       $("#modal").classList.add("hidden"); toast(`created ${t.id}`);
@@ -391,7 +494,20 @@ function listen() {
 function saveBoardPrefs() { save(`agyboard.prefs.${S.team}`, { lanes: $("#lanes").value, closed: $("#show-closed").checked }); }
 $("#detail-close").onclick = closeDetail;
 $("#team").onchange = (e) => { S.team = e.target.value; closeDetail(); openTeam(); };
-for (const id of ["#owner", "#project"]) $(id).onchange = render;
+$("#owner").onchange = render;
+$("#level").onchange = () => { save(`agyboard.level.${S.team}`, $("#level").value); setScope(null); };
+$("#show-archived").onchange = render;
+document.addEventListener("click", (e) => {
+  const sc = e.target.closest("[data-scope]");
+  if (sc) { e.preventDefault(); e.stopPropagation(); return setScope(sc.dataset.scope || null); }
+  const tk = e.target.closest("[data-task]");
+  if (tk) { e.preventDefault(); return openDetail(tk.dataset.task); }
+  const op = e.target.closest("[data-open]");
+  if (op) return openDetail(op.dataset.open);
+}, true);
+document.addEventListener("change", (e) => {
+  if (e.target.name === "depth") { save(`agyboard.deep.${S.team}`, e.target.value === "1"); render(); }
+});
 $("#filter").oninput = render;
 $("#lanes").onchange = () => { saveBoardPrefs(); render(); };
 $("#show-closed").onchange = () => { saveBoardPrefs(); render(); };

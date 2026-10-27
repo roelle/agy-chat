@@ -57,3 +57,22 @@ a.btn { text-decoration: none; display: inline-block; }
 .detail .usage { margin-top: 8px; font-size: 13px; }
 .detail .links { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
 .bookmark { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--code); color: inherit; text-decoration: none; }
+
+/* the tree */
+.scope { padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 13px; }
+.scope a { color: var(--accent); text-decoration: none; } .scope a:hover { text-decoration: underline; }
+.scope-tools { margin-left: auto; display: flex; gap: 12px; align-items: center; color: var(--dim); }
+.card .ckind { display: flex; gap: 6px; margin-bottom: 2px; }
+.card .lvl { font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: var(--accent); font-weight: 700; }
+.prio { font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 4px; background: var(--code); }
+.prio.p0 { background: rgba(214,69,69,.2); color: var(--bad); } .prio.p1 { background: rgba(212,137,26,.2); color: var(--warn); }
+.card .cpath { font-size: 11px; color: var(--dim); margin: 1px 0 3px; }
+.card .progress { height: 4px; background: var(--code); border-radius: 2px; margin: 4px 0; overflow: hidden; }
+.card .progress span { display: block; height: 100%; background: var(--ok); }
+.card.archived { opacity: .55; }
+.card .drill { margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 6px; font-size: 11px; padding: 0 6px; cursor: pointer; color: inherit; }
+.card .tokens { margin-left: 0; }
+.kids li { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.stdot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); display: inline-block; }
+.stdot.running, .stdot.claimed { background: var(--ok); } .stdot.blocked, .stdot.failed { background: var(--bad); } .stdot.review { background: var(--review); }
+.inline-check { display: flex !important; gap: 6px; align-items: center; font-size: 12px; }

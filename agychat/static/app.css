@@ -262,3 +262,6 @@ li.check { list-style: none; margin-left: -18px; }
 .emoji-box { bottom: 40px; left: 0; width: 320px; max-height: 220px; overflow-y: auto; display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; padding: 6px; }
 .emoji-box .emo { background: none; border: 0; font-size: 20px; padding: 2px; border-radius: 6px; cursor: pointer; }
 .emoji-box .emo:hover { background: var(--code); }
+
+.thread-compose { position: relative; }
+.thread-compose .popover.mention { bottom: 100%; left: 0; right: 0; }

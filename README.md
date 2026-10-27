@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.9.0"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.10.0"
 agy-chat --author <your name>
 ```
 
@@ -141,6 +141,12 @@ untick that and pick some.
 - **Bookmarks** on a channel (links, go links, paths) sit under its name.
 - **Emoji**: 😀 in the message box, or type `:` and a name (`:rocket:`), or
   your system's picker.
+- **`/` commands**: `/task`, `/project` (and one for each of the team's
+  levels) pick a task by its title and put it in the message, shown as its
+  title. `/new-task`, `/bookmark` and `/help` do what they say.
+- **Mentions in direct messages**: `@name` in a DM, or in a thread under one,
+  brings that agent in: it gets a copy, as a mention in a channel would wake
+  it.
 - **On the board**, each card shows the tokens spent on it, and a task's
   detail has the breakdown by agent and its links (web addresses, go links,
   paths).
@@ -150,15 +156,27 @@ untick that and pick some.
   until a time (applied by the supervisor at the agent's next idle moment:
   it distills, then starts a fresh conversation). Tasks are grouped by
   status, with review state and reminders.
-- **The board** (Tasks → *Board ↗*, or `/board`) is a Kanban of the team's
-  tasks: Icebox, To do, In progress, Blocked, Review and Done, with failed
-  and cancelled behind a toggle.
-  - Drag a card to change its status, its order, and, in swimlanes by owner
-    or project, its owner or project. The owner is told.
-  - A card opens its full story: every change in its log, the messages
-    tagged with it, and its reviews.
+- **The board** (`/board`) is a Kanban of the team's work: Icebox, To do,
+  In progress, Blocked, Review and Done, with failed and cancelled behind a
+  toggle.
+  - **Work is a tree.** A project is a task with tasks under it; a program,
+    a task with projects under it. The board shows one **level** at a time
+    (Projects, say, picked at the top). Each card shows its progress, the
+    tokens spent on it and everything under it, and how many tasks are
+    under it. **▸** shows those, with a breadcrumb back up and a switch
+    between "directly under it" and "everything under it". Searching looks
+    everywhere.
+  - Drag a card to change its status and order. In swimlanes by owner, it
+    changes the owner, who is told. In swimlanes by parent, it moves the card
+    under another task.
+  - A card opens its full story: what it is part of, its level, priority and
+    "close by itself when everything under it is done", the tasks under it,
+    every change in its log, the messages tagged with it, and its reviews.
+    **+ Task under it** adds one there. **Archive** takes it and everything
+    under it off the board, out of agents' task lists too, and **archived**
+    at the top brings them back into view.
   - Closing a card that needs a review asks you to waive it, on the record.
-  - Filter by owner, project or text.
+  - Admin → **Tasks** turns old project labels into parent tasks.
 - **Chat and board link to each other.**
   - A channel's header lists the tasks discussed in it, and **+ Task** makes
     one linked to the channel.

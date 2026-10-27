@@ -120,11 +120,37 @@ class App:
                 "conversations": rec.conversations(), "tasks": self.tasks(team)[:300],
                 "supervisor": sup, "stopped": rec.stopped(),
                 "reply_counts": rec.reply_counts(), "avatars": rec.avatars(),
+                "task_levels": self.tree(t.dir).get("levels") or [],
                 "server_tz": time.strftime("%Z")}
 
     TASK_FIELDS = ("id", "project", "title", "owner", "status", "note", "check_after", "until",
                    "requires_review", "updated_at", "created_at", "created_by", "evidence",
-                   "channel", "rank", "deadline", "collaborators", "links")
+                   "channel", "rank", "deadline", "collaborators", "links",
+                   "parent", "level", "priority", "auto_close", "archived")
+
+    def tree(self, team_dir) -> dict:
+        """Record.task_tree, recomputed only when the event or task log changed."""
+        return self._cached(team_dir, "tree", lambda: Record(team_dir).task_tree(),
+                            {"levels": [], "nodes": {}})
+
+    def _cached(self, team_dir, what, compute, empty):
+        key = [what]
+        for f in ("events.jsonl", "tasks.jsonl", "roster.json"):
+            try:
+                st = (Path(team_dir) / f).stat()
+                key.append((st.st_mtime_ns, st.st_size))
+            except OSError:
+                key.append(None)
+        slot = f"{team_dir}|{what}"
+        hit = self._usage_cache.get(slot)
+        if hit and hit[0] == key:
+            return hit[1]
+        try:
+            value = compute()
+        except Exception:
+            value = empty
+        self._usage_cache[slot] = (key, value)
+        return value
 
     def usage(self, team_dir) -> dict:
         """Record.task_usage, recomputed only when the event or task log changed."""
@@ -151,8 +177,10 @@ class App:
         reviewed = {r.get("task_id") for r in rec.reviews()
                     if r.get("verdict") in ("approved", "waived") and r.get("task_id")}
         usage = self.usage(t.dir)
+        nodes = self.tree(t.dir).get("nodes", {})
         return [{k: x.get(k) for k in self.TASK_FIELDS}
                 | {"reviewed": x.get("id") in reviewed, "usage": usage.get(x.get("id")),
+                   "node": nodes.get(x.get("id")),
                    "t_updated": epoch(x.get("updated_at")), "t_created": epoch(x.get("created_at"))}
                 for x in rec.tasks()]
 
@@ -260,11 +288,16 @@ class App:
                 owner=body.get("owner") or None, note=body.get("note") or "",
                 channel=body.get("channel") or None, status=body.get("status") or None,
                 deadline=body.get("deadline") or None,
-                requires_review=bool(body.get("requires_review")), rank=body.get("rank"))
+                requires_review=bool(body.get("requires_review")), rank=body.get("rank"),
+                parent=body.get("parent") or None, level=body.get("level"),
+                priority=body.get("priority"), auto_close=bool(body.get("auto_close")))
         if action == "update":
-            fields = ("status", "owner", "title", "project", "note", "channel", "deadline", "rank")
+            fields = ("status", "owner", "title", "project", "note", "channel", "deadline", "rank",
+                      "parent", "level", "priority", "auto_close", "archived")
             return actions.update_task(t.dir, body["id"],
                                        **{k: body[k] for k in fields if k in body})
+        if action == "migrate_labels":
+            return {"plan": actions.migrate_project_labels(t.dir, dry_run=bool(body.get("dry_run")))}
         if action == "waive":
             return actions.waive_review(t.dir, body["id"], by=self.author,
                                         reason=body.get("reason") or "waived on the board")

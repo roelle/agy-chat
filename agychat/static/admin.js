@@ -43,6 +43,7 @@ function showTab(tab) {
   history.replaceState(null, "", `?team=${encodeURIComponent(S.team)}#${tab}`);
   if (tab === "memories") loadMemories();
   if (tab === "update") refreshVersions();
+  if (tab === "tasks") showLevels();
 }
 document.querySelectorAll(".admin-tabs .tab").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
 
@@ -235,6 +236,31 @@ $("#memories").addEventListener("click", async (e) => {
   catch (err) { toast(err.message, true); }
 });
 
+// --- tasks: levels and moving off project labels -----------------------------------
+
+async function showLevels() {
+  try { const st = await api(`/api/state?${q({})}`);
+    $("#level-names").textContent = (st.task_levels || []).map((n, i) => `${i} ${n}`).join(", "); }
+  catch (err) { toast(err.message, true); }
+}
+function migTable(plan, done) {
+  if (!plan.length) return `<p class="sub">No project labels left to convert.</p>`;
+  return `<table class="grid"><thead><tr><th>Label</th><th>Tasks</th><th>Becomes</th></tr></thead><tbody>${plan.map((r) =>
+    `<tr><td>${esc(r.project)}</td><td>${r.tasks}</td><td>${r.parent && !done ? "goes under the existing " + esc(r.parent) : r.closed ? "a closed, archived parent" : "an open project"}</td></tr>`).join("")}</tbody></table>`;
+}
+$("#mig-preview").onclick = async () => {
+  try { const { plan } = await api("/api/task", { action: "migrate_labels", dry_run: true });
+    $("#mig-out").innerHTML = migTable(plan); $("#mig-run").disabled = !plan.length; }
+  catch (err) { toast(err.message, true); }
+};
+$("#mig-run").onclick = async () => {
+  if (!confirm("Turn these project labels into parent tasks?")) return;
+  try { const { plan } = await api("/api/task", { action: "migrate_labels" });
+    $("#mig-out").innerHTML = `<p class="sub">Done: ${plan.length} label${plan.length === 1 ? "" : "s"} converted.</p>` + migTable(plan, true);
+    $("#mig-run").disabled = true; toast("converted"); }
+  catch (err) { toast(err.message, true); }
+};
+
 // --- update and restart ---------------------------------------------------------------
 
 function teamState(t) {
@@ -301,7 +327,7 @@ function watchUpdate() {
     S.team = teams.some((t) => t.name === want) ? want : teams[0]?.name;
     $("#team").value = S.team;
     S.tab = (location.hash || "").slice(1) || load("agychat.adminTab", "agents");
-    if (!["agents", "norms", "memories", "update"].includes(S.tab)) S.tab = "agents";
+    if (!["agents", "norms", "memories", "tasks", "update"].includes(S.tab)) S.tab = "agents";
     if (S.team) await openTeam();
     const v = await refreshVersions();
     if (v && v.update.state === "running") watchUpdate();
