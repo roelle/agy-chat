@@ -93,3 +93,12 @@ def test_relative_paths_open_and_hidden_home_files_do_not(server, monkeypatch, t
     assert a.get("content") == "mine"
     _, a = call(port, "GET", "/api/artifact?team=demo&path=~/.ssh/id", token=app.token)
     assert "content" not in a and "outside" in a["error"]
+
+
+def test_state_says_which_version_is_serving(server):
+    """An open tab keeps the code it loaded; the page compares this with
+    what it loaded and offers a reload."""
+    import agychat
+    app, port, *_ = server
+    _, st = call(port, "GET", "/api/state?team=demo", token=app.token)
+    assert st["app_version"] == agychat.__version__

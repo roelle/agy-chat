@@ -265,3 +265,7 @@ li.check { list-style: none; margin-left: -18px; }
 
 .thread-compose { position: relative; }
 .thread-compose .popover.mention { bottom: 100%; left: 0; right: 0; }
+
+.update-banner { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 60; background: var(--accent); color: #fff;
+                 padding: 8px 14px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.3); font-size: 13px; display: flex; gap: 10px; align-items: center; }
+.update-banner .btn { background: #fff; color: var(--accent); }

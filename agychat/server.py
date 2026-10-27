@@ -121,6 +121,7 @@ class App:
                 "supervisor": sup, "stopped": rec.stopped(),
                 "reply_counts": rec.reply_counts(), "avatars": rec.avatars(),
                 "task_levels": self.tree(t.dir).get("levels") or [],
+                "app_version": _app_version(),
                 "server_tz": time.strftime("%Z")}
 
     TASK_FIELDS = ("id", "project", "title", "owner", "status", "note", "check_after", "until",
@@ -447,6 +448,11 @@ class App:
         sys.stderr.flush()
         args = [a for a in self.argv if a not in ("--open", "--no-open")]
         os.execv(sys.executable, [sys.executable, "-m", "agychat", *args])
+
+
+def _app_version() -> str:
+    from . import __version__
+    return __version__
 
 
 def _distill_queue():

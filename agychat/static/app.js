@@ -147,6 +147,17 @@ window.addEventListener("hashchange", () => { const v = linkedView(); if (v && S
 
 async function refreshState() {
   S.state = await api(`/api/state?${q({})}`);
+  // An open tab keeps the code it loaded. When the server has been updated
+  // since, say so: otherwise a fix that has shipped looks like it has not.
+  S.loadedVersion ??= S.state.app_version;
+  if (S.state.app_version && S.state.app_version !== S.loadedVersion && !S.toldUpdate) {
+    S.toldUpdate = true;
+    const b = document.createElement("div");
+    b.className = "update-banner";
+    b.innerHTML = `agy-chat was updated to ${esc(S.state.app_version)}; this page is still ${esc(S.loadedVersion)}. <button class="btn small">Reload</button>`;
+    b.querySelector("button").onclick = () => location.reload();
+    document.body.appendChild(b);
+  }
   S.replyCounts = S.state.reply_counts || {};
   // Mentions of you since you last looked, not only the ones that arrive live.
   for (const [k, ts] of Object.entries(S.state.mentions_of_user || {}))
@@ -399,7 +410,7 @@ async function openThread(id) {
   const where = root?.channel ? { channel: root.channel } : { to: (root?.from === "user" ? root?.to : root?.from) };
   const canReply = root && (root.channel || root.from === "user" || root.to === "user");
   $("#drawer-thread").innerHTML = messages.map((m) => msgHTML(m, { inThread: true })).join("") +
-    (canReply ? `<form class="thread-compose" data-where='${esc(JSON.stringify(where))}'><textarea rows="2" placeholder="Reply in thread"></textarea>
+    (canReply ? `<form class="thread-compose" data-where='${esc(JSON.stringify(where))}'><textarea rows="2" placeholder="Reply in thread — Enter sends, Shift+Enter for a new line"></textarea>
       <div class="composer-row"><span class="hint">${root.channel ? "mention to wake" : "wakes " + esc(where.to)}</span><button class="btn small">Reply</button></div></form>` : "");
   openDrawer("thread");
 }
@@ -653,6 +664,8 @@ function listen() {
     } else later();
   };
   S.events.onerror = () => { setTimeout(() => { if (S.events.readyState === 2) listen(); }, 3000); };
+  // Reconnected after the server restarted (an update, say): look again.
+  S.events.onopen = () => { if (S.eventsOpened) refreshState().catch(() => {}); S.eventsOpened = true; };
 }
 window.addEventListener("focus", () => { document.title = "agy-chat"; });
 

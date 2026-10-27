@@ -7,6 +7,19 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-27
+
+### Added
+- A page left open across an update says so ("agy-chat was updated to X;
+  this page is still Y") with a Reload button. An open tab keeps the code it
+  loaded, so a fix that had shipped looked as if it had not. The page checks
+  when it loads, on refresh, and when its live connection comes back after a
+  server restart.
+
+### Changed
+- The thread reply box says Enter sends and Shift+Enter starts a new line,
+  as the message box does.
+
 ## [0.10.0] - 2026-10-27
 
 ### Added
@@ -247,7 +260,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/roelle/agy-chat/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/roelle/agy-chat/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/roelle/agy-chat/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/roelle/agy-chat/compare/v0.7.1...v0.8.0
