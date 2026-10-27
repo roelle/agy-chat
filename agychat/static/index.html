@@ -22,9 +22,9 @@
     <button id="sup-restart" class="btn small ghost hidden" title="Restart on the installed code: no new turns; the ones in flight finish first">Restart</button>
     <button id="sup-stop" class="btn small ghost hidden">Stop</button>
   </div>
-  <a id="admin-link" class="link top-link" target="agy-admin" title="Agents, norms, memories, update">Admin ↗</a>
+  <nav id="app-nav" class="app-nav"></nav>
   <div id="me" class="me"></div>
-  <button id="prefs" class="icon top-icon" title="Preferences: time zone, clock, go links">⚙</button>
+
 </header>
 
 <div class="main">
@@ -41,9 +41,9 @@
     </section>
     <div class="splitter h" data-split="ops" title="Drag to resize; double-click to reset"></div>
     <section class="ops">
-      <div class="section-head">Agents <a id="wiki-link" class="link" target="_blank" rel="noopener">Team wiki ↗</a></div>
+      <div class="section-head">Agents</div>
       <ul id="agents" class="agents"></ul>
-      <div class="section-head">Tasks <a id="board-link" class="link" target="agy-board">Board ↗</a><label class="toggle"><input id="show-done" type="checkbox"> done</label></div>
+      <div class="section-head">Tasks <label class="toggle"><input id="show-done" type="checkbox"> done</label></div>
       <div id="tasks" class="tasks"></div>
     </section>
   </aside>
@@ -78,6 +78,8 @@
           <option value="fyi">fyi (never wakes)</option>
         </select>
         <button type="button" id="attach" class="icon" title="Attach a file or picture (or paste / drop one into the box)">📎</button>
+        <button type="button" id="emoji" class="icon" title="Emoji (or type :name, or use your system's picker: Win+. / Ctrl+Cmd+Space)">😀</button>
+        <div id="emoji-box" class="popover emoji-box hidden"></div>
         <span id="compose-hint" class="hint"></span>
         <button class="btn" type="submit">Send</button>
       </div>

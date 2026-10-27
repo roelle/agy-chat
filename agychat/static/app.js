@@ -92,7 +92,7 @@ function msgHTML(m, opts = {}) {
   const who = sender(m);
   const badge = kind !== "work" ? `<span class="badge ${quiet ? "quiet" : kind}">${esc(kind)}</span>` : "";
   const tk = m.task_id ? RenderCtx.task(m.task_id) : null;
-  const task = m.task_id ? `<a class="badge quiet" href="${boardURL(m.task_id)}" target="agy-board" title="${esc(m.task_id)} — open on the board">${esc(tk ? tk.title : m.task_id)}</a>` : "";
+  const task = m.task_id ? `<a class="badge quiet" href="${boardURL(m.task_id)}" title="${esc(m.task_id)} — open on the board">${esc(tk ? tk.title : m.task_id)}</a>` : "";
   const to = opts.showTo && m.to && !String(m.to).startsWith("#") ? ` <span class="when">→ ${esc(nameOf(m.to))}</span>` : "";
   const n = S.replyCounts[m.id] || 0;
   const replies = !opts.inThread && n ? `<div class="replies" data-thread="${esc(m.id)}">${n} repl${n === 1 ? "y" : "ies"}</div>` :
@@ -127,9 +127,7 @@ async function loadTeams() {
 
 async function openTeam() {
   save("agychat.team", S.team);
-  $("#wiki-link").href = `/wiki?team=${encodeURIComponent(S.team)}`;
-  $("#board-link").href = boardURL();
-  $("#admin-link").href = `/admin?team=${encodeURIComponent(S.team)}`;
+  renderNav("chat", S.team, () => { renderMessages(); renderAgents(); renderViewTasks(); if (S.thread) openThread(S.thread); });
   await refreshState();
   const v = linkedView() || load(`agychat.view.${S.team}`, null);
   const chans = Object.keys(S.state.channels || {});
@@ -242,7 +240,7 @@ function renderTasks() {
   const order = ["running", "claimed", "blocked", "review", "queued", "icebox", "done", "failed", "cancelled"];
   const keys = Object.keys(groups).sort((a, b) => (order.indexOf(a) + 99) % 99 - (order.indexOf(b) + 99) % 99);
   $("#tasks").innerHTML = keys.length ? keys.map((k) => `<div class="task-group">${esc(k)} · ${groups[k].length}</div>` +
-    groups[k].map((t) => `<div class="task"><div class="t"><a href="${boardURL(t.id)}" target="agy-board" title="Open on the board">${esc(t.title)}</a></div><div class="meta">
+    groups[k].map((t) => `<div class="task"><div class="t"><a href="${boardURL(t.id)}" title="Open on the board">${esc(t.title)}</a></div><div class="meta">
       <span>${esc(t.owner ? nameOf(t.owner) : "unclaimed")}</span><span class="tag">${esc(t.project || "")}</span>
       ${t.channel ? `<span class="chan" data-view='${esc(JSON.stringify({ type: "channel", id: t.channel }))}'>#${esc(t.channel)}</span>` : ""}
       ${t.requires_review ? `<span class="tag ${t.reviewed ? "ok" : "rev"}">${t.reviewed ? "reviewed" : "needs review"}</span>` : ""}
@@ -305,7 +303,7 @@ function renderViewTasks() {
   const open = mine.filter((t) => !TERMINAL.has(t.status));
   box.classList.toggle("hidden", !mine.length || !tasksOnTop());
   const shown = open.slice(0, TOP_TASKS);
-  box.innerHTML = shown.map((t) => `<a class="task-chip" href="${boardURL(t.id)}" target="agy-board" title="${esc(t.status)} · ${esc(t.id)}${t.usage ? " · " + esc(tokensText(t.usage)) : ""}">
+  box.innerHTML = shown.map((t) => `<a class="task-chip" href="${boardURL(t.id)}" title="${esc(t.status)} · ${esc(t.id)}${t.usage ? " · " + esc(tokensText(t.usage)) : ""}">
       <span class="st ${esc(t.status)}"></span>${esc(t.title)} <span class="owner">· ${esc(taskOwner(t))}</span></a>`).join("")
     + (open.length > shown.length || mine.length > open.length
        ? `<button class="task-chip more" data-panel="tasks">${open.length > shown.length ? `+${open.length - shown.length} open` : ""}${open.length > shown.length && mine.length > open.length ? " · " : ""}${mine.length > open.length ? `${mine.length - open.length} closed` : ""} ▸</button>` : "");
@@ -321,7 +319,7 @@ function renderPanelTasks() {
   box.innerHTML = `<div class="artifact-head">#${esc(v.id)} — tasks
       <label class="toggle"><input type="checkbox" id="panel-all" ${all ? "checked" : ""}> closed too</label>
       <label class="toggle"><input type="checkbox" id="panel-top" ${tasksOnTop() ? "checked" : ""}> show at the top</label></div>
-    ${rows.map((t) => `<div class="panel-task"><div class="t"><span class="st ${esc(t.status)}"></span><a href="${boardURL(t.id)}" target="agy-board">${esc(t.title)}</a></div>
+    ${rows.map((t) => `<div class="panel-task"><div class="t"><span class="st ${esc(t.status)}"></span><a href="${boardURL(t.id)}">${esc(t.title)}</a></div>
       <div class="meta"><span>${esc(taskOwner(t))}</span><span class="tag">${esc(t.status)}</span>${t.usage ? `<span class="tag" title="${esc(t.usage.direct)} turn(s) named it, ${esc(t.usage.inferred)} inferred from who was working on it">${esc(tokensText(t.usage))}</span>` : ""}
       <span class="when">${esc(fmtTime(t.t_updated, t.updated_at, "short"))}</span></div></div>`).join("")
       || `<div class="empty">${mine.length ? "No open tasks." : "No tasks in this channel. + Task in the header makes one."}</div>`}`;
@@ -469,10 +467,49 @@ $("#input").addEventListener("keydown", (e) => {
 });
 $("#input").addEventListener("input", mentionSuggest);
 
-// @mention autocomplete
+// --- emoji ---------------------------------------------------------------------------
+
+const EMOJI = Object.entries({
+  smile: "😄", grin: "😁", joy: "😂", wink: "😉", blush: "😊", thinking: "🤔", neutral: "😐", sweat: "😅",
+  cry: "😢", sob: "😭", angry: "😠", scream: "😱", shrug: "🤷", facepalm: "🤦", eyes: "👀", wave: "👋",
+  thumbsup: "👍", thumbsdown: "👎", ok: "👌", clap: "👏", pray: "🙏", muscle: "💪", raised_hands: "🙌", point_up: "☝️",
+  heart: "❤️", fire: "🔥", sparkles: "✨", star: "⭐", tada: "🎉", rocket: "🚀", trophy: "🏆", hundred: "💯",
+  check: "✅", x: "❌", warning: "⚠️", stop: "🛑", question: "❓", exclamation: "❗", bulb: "💡", memo: "📝",
+  bug: "🐛", wrench: "🔧", hammer: "🔨", gear: "⚙️", lock: "🔒", key: "🔑", link: "🔗", pin: "📌",
+  calendar: "📅", clock: "🕒", hourglass: "⏳", chart: "📈", package: "📦", books: "📚", mag: "🔍", bell: "🔔",
+  coffee: "☕", pizza: "🍕", beer: "🍺", cake: "🎂", sun: "☀️", moon: "🌙", cloud: "☁️", zap: "⚡",
+  robot: "🤖", brain: "🧠", ghost: "👻", skull: "💀", poop: "💩", unicorn: "🦄", turtle: "🐢", snail: "🐌",
+  plus: "➕", minus: "➖", arrow_right: "➡️", arrow_up: "⬆️", repeat: "🔁", recycle: "♻️", boom: "💥", ship: "🚢",
+});
+function insertAtCursor(ta, text) {
+  const pos = ta.selectionStart ?? ta.value.length;
+  ta.value = ta.value.slice(0, pos) + text + ta.value.slice(pos);
+  ta.selectionStart = ta.selectionEnd = pos + text.length; ta.focus();
+}
+$("#emoji").onclick = () => {
+  const box = $("#emoji-box");
+  if (!box.classList.contains("hidden")) return box.classList.add("hidden");
+  box.innerHTML = EMOJI.map(([n, e]) => `<button type="button" class="emo" title=":${n}:" data-emo="${e}">${e}</button>`).join("");
+  box.classList.remove("hidden");
+};
+$("#emoji-box").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-emo]"); if (!b) return;
+  insertAtCursor($("#input"), b.dataset.emo); $("#emoji-box").classList.add("hidden");
+});
+document.addEventListener("mousedown", (e) => { if (!e.target.closest("#emoji-box, #emoji")) $("#emoji-box").classList.add("hidden"); });
+
+// @mention and :emoji: autocomplete
 function mentionSuggest() {
   const ta = $("#input"); const before = ta.value.slice(0, ta.selectionStart);
-  const m = before.match(/(?:^|\s)@([\w-]*)$/); const box = $("#mention-box");
+  const box = $("#mention-box");
+  const em = before.match(/(?:^|\s):([a-z_]{2,})$/);
+  if (em) {
+    const hits = EMOJI.filter(([n]) => n.startsWith(em[1])).slice(0, 8);
+    if (!hits.length) return box.classList.add("hidden");
+    box.innerHTML = hits.map(([n, e], i) => `<div class="item ${i ? "" : "sel"}" data-emoji="${e}" data-name=":${n}">${e} <span class="k">:${n}:</span></div>`).join("");
+    return box.classList.remove("hidden");
+  }
+  const m = before.match(/(?:^|\s)@([\w-]*)$/);
   if (!m) return box.classList.add("hidden");
   // "@Ada" offers at-Ada: a name matches on its start or on any part after a
   // team prefix, ignoring case, as agy-team resolves it.
@@ -489,8 +526,13 @@ function mentionSuggest() {
     <span class="k">${esc(o.hint)}</span></div>`).join("");
   box.classList.remove("hidden");
 }
-function mentionPick(name) {
+function mentionPick(name, emoji) {
   const ta = $("#input"); const pos = ta.selectionStart;
+  if (emoji) {
+    const before = ta.value.slice(0, pos).replace(/:([a-z_]*)$/, emoji + " ");
+    ta.value = before + ta.value.slice(pos); ta.selectionStart = ta.selectionEnd = before.length;
+    $("#mention-box").classList.add("hidden"); return ta.focus();
+  }
   const before = ta.value.slice(0, pos).replace(/@([\w-]*)$/, `@${name} `);
   ta.value = before + ta.value.slice(pos); ta.selectionStart = ta.selectionEnd = before.length;
   $("#mention-box").classList.add("hidden"); ta.focus();
@@ -498,11 +540,11 @@ function mentionPick(name) {
 function mentionKey(e) {
   const items = [...document.querySelectorAll("#mention-box .item")]; let i = items.findIndex((x) => x.classList.contains("sel"));
   if (e.key === "Escape") { $("#mention-box").classList.add("hidden"); return e.preventDefault(); }
-  if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); return mentionPick(items[i].dataset.name); }
+  if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); return mentionPick(items[i].dataset.name, items[i].dataset.emoji); }
   e.preventDefault(); items[i]?.classList.remove("sel");
   i = (i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length; items[i].classList.add("sel");
 }
-$("#mention-box").addEventListener("mousedown", (e) => { const it = e.target.closest(".item"); if (it) { e.preventDefault(); mentionPick(it.dataset.name); } });
+$("#mention-box").addEventListener("mousedown", (e) => { const it = e.target.closest(".item"); if (it) { e.preventDefault(); mentionPick(it.dataset.name, it.dataset.emoji); } });
 
 // --- live -----------------------------------------------------------------------------
 
@@ -564,7 +606,6 @@ $("#open-panel").onclick = () => {
   if (v?.type === "dm") { const other = v.pair.find((x) => x !== "user"); if (other && other !== "supervisor") return openActivity(other); }
   openDrawer("tasks");
 };
-$("#prefs").onclick = () => openPrefs(() => { renderMessages(); renderAgents(); renderViewTasks(); if (S.thread) openThread(S.thread); });
 
 // --- attachments: paste, drop or 📎 -------------------------------------------------
 

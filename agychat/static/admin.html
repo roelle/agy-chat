@@ -13,29 +13,31 @@
   <div class="brand">agy<span>admin</span></div>
   <label class="team-label" for="team">Team</label>
   <select id="team"></select>
+  <nav id="app-nav" class="app-nav"></nav>
+</header>
+
+<main class="admin">
   <nav class="admin-tabs">
     <button data-tab="agents" class="tab">Agents</button>
     <button data-tab="norms" class="tab">Norms</button>
     <button data-tab="memories" class="tab">Memories</button>
     <button data-tab="update" class="tab">Update &amp; restart</button>
   </nav>
-  <a id="chat-link" class="link top-link" target="agy-chat">Chat ↗</a>
-  <a id="board-link" class="link top-link" target="agy-board">Board ↗</a>
-</header>
-
-<main class="admin">
   <section id="tab-agents" class="pane">
     <h2>Agents</h2>
     <p class="sub">Changes go to the roster through agy-team, so a running supervisor adopts them. A
       removed agent's turn is cancelled; its memories and history stay on disk. Workspaces and other
       policy fields are edited in <code>roster.json</code>.</p>
     <table class="grid">
-      <thead><tr><th>Name</th><th>Role</th><th>Default model</th>
+      <thead><tr><th title="Click to set a picture">Picture</th><th>Name</th><th>Role</th><th>Default model</th>
         <th title="Model for distill, memory review and retro turns; needs a runtime that switches models mid-conversation (the agy CLI)">Memory model</th><th>Principal</th>
         <th title="Tool names this agent may not call, comma-separated">Tools off</th>
         <th title="The name it is shown by, and answers to as @alias">Alias</th><th></th></tr></thead>
       <tbody id="agents"></tbody>
     </table>
+    <h3>Your picture</h3>
+    <div class="row-form"><span id="me-pic"></span><span class="sub">Shown beside what you post.</span></div>
+    <input type="file" id="pic-file" accept="image/*" class="hidden">
     <h3>Add an agent</h3>
     <form id="add-agent" class="row-form">
       <input name="name" placeholder="name, e.g. at-Ada" required>
@@ -103,6 +105,7 @@
 
 <div id="modal" class="modal hidden"><div class="modal-card" id="modal-card"></div></div>
 <div id="toast" class="toast hidden"></div>
+<script src="/static/common.js"></script>
 <script src="/static/admin.js"></script>
 </body>
 </html>

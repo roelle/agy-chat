@@ -67,7 +67,7 @@ async function loadTeams() {
 async function openTeam() {
   save("agychat.team", S.team);
   history.replaceState(null, "", `/board?team=${encodeURIComponent(S.team)}${location.hash}`);
-  $("#chat-link").href = chatURL();
+  renderNav("board", S.team, () => { render(); if (S.selected) openDetail(S.selected); });
   await refresh();
   const prefs = load(`agyboard.prefs.${S.team}`, {});
   $("#lanes").value = prefs.lanes || ""; $("#show-closed").checked = !!prefs.closed;
@@ -128,11 +128,12 @@ function cardHTML(t) {
     <div class="ct">${esc(t.title)}</div>
     <div class="cm"><span class="who">${esc(nameOf(t.owner))}</span>
       ${$("#lanes").value !== "project" ? `<span class="tag">${esc(t.project || "")}</span>` : ""}
-      ${t.channel ? `<a class="chan" href="${chatURL("channel=" + encodeURIComponent(t.channel))}" target="agy-chat" title="Open the channel">#${esc(t.channel)}</a>` : ""}
+      ${t.channel ? `<a class="chan" href="${chatURL("channel=" + encodeURIComponent(t.channel))}" title="Open the channel">#${esc(t.channel)}</a>` : ""}
       ${t.deadline ? `<span class="due ${over ? "over" : ""}" title="deadline ${esc(t.deadline)}">due ${esc(fmtDate(t.deadline))}</span>` : ""}
       ${t.check_after && !TERMINAL.has(t.status) ? `<span title="reminder ${esc(t.check_after)}">⏰</span>` : ""}
       ${t.requires_review ? `<span class="tag ${t.reviewed ? "ok" : "rev"}">${t.reviewed ? "reviewed" : "needs review"}</span>` : ""}
       ${t.status === "claimed" ? `<span title="claimed, not yet reported running">claimed</span>` : ""}
+      ${t.usage && t.usage.tokens ? `<span class="tokens" title="tokens spent on it (an estimate)">${tokens(t.usage.tokens)}</span>` : ""}
     </div></div>`;
 }
 
@@ -254,15 +255,19 @@ async function openDetail(id) {
       <div><label>Channel</label><select name="channel"><option value="">none</option>${chans.map((n) => `<option ${n === t.channel ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></div></div>
     <label>Deadline <span class="hint">(e.g. 3d, or 2026-11-01T17:00:00-07:00)</span></label><input type="text" name="deadline" value="${esc(t.deadline || "")}">
     <label>Note</label><textarea name="note" rows="5">${esc(t.note || "")}</textarea>
+    <label>Links <span class="hint">(one per line: title | link — a web address, go link or path)</span></label>
+    <div class="links">${(t.links || []).map(linkHTML).join("") || '<span class="hint">none</span>'}</div>
+    <textarea name="links" rows="2" placeholder="PR | https://…&#10;Design | ~/docs/design.md">${esc((t.links || []).map((l) => l.title && l.title !== l.url ? `${l.title} | ${l.url}` : l.url).join("\n"))}</textarea>
     <div class="actions"><button class="btn">Save</button>
-      ${t.channel ? `<a class="btn ghost" href="${chatURL("channel=" + encodeURIComponent(t.channel))}" target="agy-chat">Open #${esc(t.channel)}</a>` : ""}
-      ${t.owner ? `<a class="btn ghost" href="${chatURL("dm=" + encodeURIComponent(t.owner))}" target="agy-chat">Message ${esc(nameOf(t.owner))}</a>` : ""}
+      ${t.channel ? `<a class="btn ghost" href="${chatURL("channel=" + encodeURIComponent(t.channel))}">Open #${esc(t.channel)}</a>` : ""}
+      ${t.owner ? `<a class="btn ghost" href="${chatURL("dm=" + encodeURIComponent(t.owner))}">Message ${esc(nameOf(t.owner))}</a>` : ""}
       ${t.requires_review && !t.reviewed ? `<button type="button" class="btn ghost" id="waive">Waive review</button>` : ""}</div>
-    <div class="hint" style="margin-top:6px">created by ${esc(nameOf(t.created_by))} ${esc(t.created_at || "")}${t.evidence ? " · evidence: " + esc(t.evidence) : ""}${t.requires_review ? (t.reviewed ? " · reviewed" : " · needs an approved review to close") : ""}</div>
+    ${usageHTML(t.usage)}
+    <div class="hint" style="margin-top:6px">created by ${esc(nameOf(t.created_by))} ${esc(fmtTime(t.t_created, t.created_at, "short"))}${t.evidence ? " · evidence: " + esc(t.evidence) : ""}${t.requires_review ? (t.reviewed ? " · reviewed" : " · needs an approved review to close") : ""}</div>
   </form>
   <h4>Timeline</h4><ul class="tl">${d.history.map(historyLine).join("")}</ul>
   <h4>Messages about it (${d.messages.length})</h4><ul class="tl">${d.messages.slice().reverse().map(messageLine).join("") || "<li>none tagged with this task</li>"}</ul>
-  <h4>Reviews (${d.reviews.length})</h4><ul class="tl">${d.reviews.map((r) => `<li><span class="when">${esc(r.ts || "")}</span><b>${esc(r.verdict)}</b> by ${esc(nameOf(r.reviewer || r.by))}${r.what ? " — " + esc(r.what) : ""}</li>`).join("") || "<li>none</li>"}</ul>`;
+  <h4>Reviews (${d.reviews.length})</h4><ul class="tl">${d.reviews.map((r) => `<li><span class="when">${esc(fmtTime(r.t, r.ts, "short"))}</span><b>${esc(r.verdict)}</b> by ${esc(nameOf(r.reviewer || r.by))}${r.what ? " — " + esc(r.what) : ""}</li>`).join("") || "<li>none</li>"}</ul>`;
   $("#detail-form").onsubmit = (e) => { e.preventDefault(); saveDetail(t, new FormData(e.target)); };
   $("#waive")?.addEventListener("click", async () => {
     const reason = prompt("Why ship it without a review? (recorded with the waiver)"); if (reason === null) return;
@@ -272,7 +277,7 @@ async function openDetail(id) {
 }
 
 function historyLine(e) {
-  const skip = new Set(["id", "kind", "ts", "by", "created_by"]);
+  const skip = new Set(["id", "kind", "ts", "t", "by", "created_by"]);
   const keys = Object.keys(e).filter((k) => !skip.has(k));
   const what = e.kind === "created" ? `created${e.owner ? " for " + esc(nameOf(e.owner)) : ""}` :
     keys.length === 1 && keys[0] === "rank" ? "reordered on the board" :
@@ -280,23 +285,45 @@ function historyLine(e) {
     Object.entries(e).filter(([k, v]) => !skip.has(k) && v !== undefined)
       .map(([k, v]) => `${esc(k)} → ${esc(k === "owner" ? nameOf(v) : typeof v === "object" ? JSON.stringify(v) : v)}`).join(", ");
   const by = e.by || e.created_by;
-  return `<li><span class="when">${esc((e.ts || "").replace("T", " ").replace("Z", ""))}</span>${by ? esc(nameOf(by)) + ": " : ""}${what}</li>`;
+  return `<li><span class="when">${esc(fmtTime(e.t, e.ts, "short"))}</span>${by ? esc(nameOf(by)) + ": " : ""}${what}</li>`;
 }
 function messageLine(m) {
   const where = m.channel ? chatURL("channel=" + encodeURIComponent(m.channel)) :
     chatURL("dm=" + encodeURIComponent(m.from === "user" ? m.to : m.from));
   const label = m.channel ? "#" + m.channel : `${nameOf(m.from)} → ${nameOf(m.to)}`;
-  return `<li><span class="when">${esc((m.ts || "").slice(5, 16))}</span><a href="${where}" target="agy-chat">${esc(label)}</a>
+  return `<li><span class="when">${esc(fmtTime(m.t, m.ts, "short"))}</span><a href="${where}">${esc(label)}</a>
     ${m.kind && m.kind !== "work" ? `<span class="badge quiet">${esc(m.kind)}</span>` : ""} ${esc((m.content || "").slice(0, 200))}</li>`;
 }
 
+function linkHTML(l) {
+  const h = href(escHTML(l.url));
+  return h ? `<a class="bookmark" href="${h}" target="_blank" rel="noopener" title="${esc(l.url)}">🔗 ${esc(l.title)}</a>`
+           : `<span class="bookmark" title="${esc(l.url)}">📄 ${esc(l.title)}</span>`;
+}
+function tokens(n) { return n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n || 0); }
+function usageHTML(u) {
+  if (!u || !u.tokens) return `<div class="hint" style="margin-top:6px">No tokens recorded for it yet.</div>`;
+  const by = Object.entries(u.agents || {}).sort((a, b) => b[1] - a[1]).map(([a, n]) => `${esc(nameOf(a))} ${tokens(n)}`).join(", ");
+  return `<div class="usage"><b>${tokens(u.tokens)} tokens</b> over ${u.turns} turn${u.turns === 1 ? "" : "s"} (${tokens(u.input_tokens)} in, ${tokens(u.output_tokens)} out) — ${by}
+    <div class="hint">${u.direct} turn${u.direct === 1 ? "" : "s"} woken by a message naming it; ${u.inferred} counted because the agent was working on it. An estimate.</div></div>`;
+}
+
 async function saveDetail(t, fd) {
+  const linksBefore = (t.links || []).map((l) => l.title && l.title !== l.url ? `${l.title} | ${l.url}` : l.url).join("\n");
+  const linksNow = String(fd.get("links") || "").split("\n").map((l) => l.trim()).filter(Boolean).join("\n");
+  if (linksNow !== linksBefore) {
+    const links = linksNow ? linksNow.split("\n").map((l) => { const [a, ...r] = l.split("|"); return r.length ? { title: a.trim(), url: r.join("|").trim() } : { url: a.trim() }; }) : [];
+    try { await api("/api/bookmarks", { task: t.id, bookmarks: links }); } catch (err) { return toast(err.message, true); }
+  }
   const change = {};
   for (const k of ["title", "status", "owner", "project", "channel", "deadline", "note"]) {
     const v = (fd.get(k) ?? "").toString();
     if (v !== (t[k] || "")) change[k] = v;
   }
-  if (!Object.keys(change).length) return toast("nothing changed");
+  if (!Object.keys(change).length) {
+    if (linksNow !== linksBefore) { toast("links saved"); await refresh(); render(); return openDetail(t.id); }
+    return toast("nothing changed");
+  }
   if (change.deadline === "") return toast("clearing a deadline is not supported yet", true);
   try {
     if (change.status === "done" && t.requires_review && !t.reviewed) return toast("needs an approved review first, or Waive review", true);
@@ -361,13 +388,13 @@ function listen() {
   S.events.onerror = () => { setTimeout(() => { if (S.events.readyState === 2) listen(); }, 3000); };
 }
 
-function savePrefs() { save(`agyboard.prefs.${S.team}`, { lanes: $("#lanes").value, closed: $("#show-closed").checked }); }
+function saveBoardPrefs() { save(`agyboard.prefs.${S.team}`, { lanes: $("#lanes").value, closed: $("#show-closed").checked }); }
 $("#detail-close").onclick = closeDetail;
 $("#team").onchange = (e) => { S.team = e.target.value; closeDetail(); openTeam(); };
 for (const id of ["#owner", "#project"]) $(id).onchange = render;
 $("#filter").oninput = render;
-$("#lanes").onchange = () => { savePrefs(); render(); };
-$("#show-closed").onchange = () => { savePrefs(); render(); };
+$("#lanes").onchange = () => { saveBoardPrefs(); render(); };
+$("#show-closed").onchange = () => { saveBoardPrefs(); render(); };
 $("#new-task").onclick = newTask;
 window.addEventListener("hashchange", () => { const id = new URLSearchParams(location.hash.slice(1)).get("task"); if (id && id !== S.selected) openDetail(id); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { $("#modal").classList.add("hidden"); closeDetail(); } });

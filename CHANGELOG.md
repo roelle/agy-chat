@@ -7,6 +7,26 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-27
+
+### Added
+- **One app**: Chat, Board, Wiki and Admin share a navigation bar, with ⚙
+  Preferences, and open in the same tab. The wiki has the same header and
+  renders norms and memories with the full markdown renderer.
+- **Pictures** for agents and for you, set on the Admin page's Agents tab and
+  shown beside messages.
+- **The board** shows tokens spent on each card, a task's token breakdown by
+  agent, and its links, editable in the task's detail. Times use your
+  preferences.
+- **Emoji**: a 😀 picker in the message box and `:name` autocomplete.
+
+### Changed
+- The Admin page's own tabs sit under the shared bar. Links between Chat and
+  Board no longer open separate windows.
+
+### Fixed
+- The board's task timeline listed the new `t` field as a change.
+
 ## [0.8.0] - 2026-10-27
 
 ### Added
@@ -196,7 +216,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/roelle/agy-chat/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/roelle/agy-chat/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/roelle/agy-chat/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/roelle/agy-chat/compare/v0.6.0...v0.7.0

@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.8.0"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.9.0"
 agy-chat --author <your name>
 ```
 
@@ -60,11 +60,18 @@ flight; their mail is delivered again on Start. **Restart** keeps them: the
 supervisor starts no new turns, lets the ones in flight finish (the pill says
 whom it is waiting for), then restarts itself on the installed code.
 
+## One app: Chat, Board, Wiki, Admin
+
+Every page has the same bar across the top: **Chat**, **Board**, **Wiki**
+and **Admin**, for the team you have picked, and ⚙ for your preferences
+(time zone, clock, go links).
+
 ## Admin
 
-**Admin ↗** in the top bar opens a page with four tabs:
+The **Admin** page has four tabs:
 
-- **Agents**: change an agent's role, default model, memory model (for its
+- **Agents**: set an agent's picture (and yours), change its role, default
+  model, memory model (for its
   distill, review and retro turns), principal flag, tools
   it may not call and aliases; add an agent (it joins every channel unless
   you untick that) or remove one. Changes go through agy-team's roster
@@ -132,6 +139,11 @@ untick that and pick some.
   tokens spent on each. A busy channel can drop them from the top and keep
   them in the panel.
 - **Bookmarks** on a channel (links, go links, paths) sit under its name.
+- **Emoji**: 😀 in the message box, or type `:` and a name (`:rocket:`), or
+  your system's picker.
+- **On the board**, each card shows the tokens spent on it, and a task's
+  detail has the breakdown by agent and its links (web addresses, go links,
+  paths).
 - **Live operations.** Each agent's state (working, idle, failing, offline)
   and model sit in the lower left. Click an agent for its recent turns, tool
   calls and failures; click its model to move it to another one, optionally

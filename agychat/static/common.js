@@ -118,7 +118,7 @@ function renderToken(kind, m, ctx) {
     case "task": {
       const t = ctx.task(m[0]);
       if (!t) return null;
-      return `<a class="task-ref" href="${escHTML(ctx.taskURL(m[0]))}" target="agy-board" title="${escHTML(m[0])} · ${escHTML(t.status || "")}"><span class="st ${escHTML(t.status || "")}"></span>${escHTML(t.title)}</a>`;
+      return `<a class="task-ref" href="${escHTML(ctx.taskURL(m[0]))}" title="${escHTML(m[0])} · ${escHTML(t.status || "")}"><span class="st ${escHTML(t.status || "")}"></span>${escHTML(t.title)}</a>`;
     }
   }
   return null;
@@ -201,4 +201,16 @@ function openPrefs(onSaved) {
     Prefs.golinks = (fd.get("golinks") || "http://go/").trim();
     savePrefs(); dlg.remove(); if (onSaved) onSaved();
   };
+}
+
+// --- one app: the navigation every page shares --------------------------------------------
+
+const PAGES = [["chat", "Chat", "/"], ["board", "Board", "/board"], ["wiki", "Wiki", "/wiki"], ["admin", "Admin", "/admin"]];
+function renderNav(current, team, onPrefs) {
+  const el = document.getElementById("app-nav"); if (!el) return;
+  const t = team ? `?team=${encodeURIComponent(team)}` : "";
+  el.innerHTML = PAGES.map(([key, label, path]) =>
+    `<a class="nav-link${key === current ? " active" : ""}" href="${path}${t}">${label}</a>`).join("")
+    + `<button class="icon top-icon nav-prefs" title="Preferences: time zone, clock, go links">⚙</button>`;
+  el.querySelector(".nav-prefs").onclick = () => openPrefs(onPrefs);
 }

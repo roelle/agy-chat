@@ -297,6 +297,7 @@ class App:
                            for a in roster.get("agents", [])],
                 "fields": list(actions.AGENT_FIELDS),
                 "memory_model": roster.get("memory_model"),
+                "avatars": actions.avatars(t.dir),
                 "norms": actions.norms(t.dir)}
 
     def agent(self, team: str, body: dict) -> dict:

@@ -48,8 +48,7 @@ document.querySelectorAll(".admin-tabs .tab").forEach((b) => (b.onclick = () => 
 
 async function openTeam() {
   save("agychat.team", S.team);
-  $("#chat-link").href = `/?team=${encodeURIComponent(S.team)}`;
-  $("#board-link").href = `/board?team=${encodeURIComponent(S.team)}`;
+  renderNav("admin", S.team);
   document.title = `${S.team} — admin — agy-chat`;
   S.admin = await api(`/api/admin?${q({})}`);
   renderAgents(); renderNorms();
@@ -60,8 +59,32 @@ $("#team").onchange = (e) => { S.team = e.target.value; openTeam(); };
 
 // --- agents -------------------------------------------------------------------------
 
+// Pictures: click one to choose a file; "remove" clears it.
+function picHTML(who) {
+  const has = (S.admin.avatars || {})[who];
+  const label = who === "user" ? "you" : who;
+  return `<span class="pic" data-pic="${esc(who)}" title="${has ? "Change" : "Set"} ${esc(label)}'s picture">${has
+    ? `<img src="/api/avatar?${q({ who })}&v=${Date.now()}" alt="">` : esc(label[0] || "?").toUpperCase()}</span>`
+    + (has ? ` <button class="link small-link" data-unpic="${esc(who)}">remove</button>` : "");
+}
+document.addEventListener("click", async (e) => {
+  const set = e.target.closest("[data-pic]");
+  if (set) { S.picFor = set.dataset.pic; return $("#pic-file").click(); }
+  const un = e.target.closest("[data-unpic]");
+  if (un) { try { await api("/api/avatar", { who: un.dataset.unpic }); await openTeam(); } catch (err) { toast(err.message, true); } }
+});
+$("#pic-file").onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  const data = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.readAsDataURL(f); });
+  const ext = "." + ((f.name.split(".").pop() || "png").toLowerCase());
+  try { await api("/api/avatar", { who: S.picFor, data, ext }); toast("picture saved"); await openTeam(); }
+  catch (err) { toast(err.message, true); }
+};
+
 function renderAgents() {
+  $("#me-pic").innerHTML = picHTML("user");
   $("#agents").innerHTML = S.admin.agents.map((a) => `<tr data-name="${esc(a.name)}">
+    <td data-label="Picture">${picHTML(a.name)}</td>
     <td class="name">${esc(a.name)}</td>
     <td data-label="Role"><input type="text" data-f="role" value="${esc(a.role)}"></td>
     <td data-label="Default model"><input type="text" data-f="model" value="${esc(a.model)}" placeholder="runner default"></td>
@@ -71,7 +94,7 @@ function renderAgents() {
     <td data-label="Alias"><input type="text" data-f="alias" value="${esc(a.alias)}" placeholder="none" title="The name it is shown by, and answers to as @alias"></td>
     <td class="row-actions"><button class="btn small hidden" data-act="save">Save</button>
       <button class="btn small ghost" data-act="remove">Remove</button></td></tr>`).join("")
-    || `<tr><td colspan="8" class="sub">No agents on the roster.</td></tr>`;
+    || `<tr><td colspan="9" class="sub">No agents on the roster.</td></tr>`;
 }
 $("#agents").addEventListener("input", (e) => {
   const tr = e.target.closest("tr"); tr.classList.add("dirty"); tr.querySelector("[data-act=save]").classList.remove("hidden");

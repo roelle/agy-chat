@@ -251,3 +251,14 @@ li.check { list-style: none; margin-left: -18px; }
 .panel-task .tag { background: var(--code); color: var(--fg); }
 .artifact-head .toggle { margin-left: 10px; display: inline-flex; }
 .top-icon { color: var(--side-fg); font-size: 16px; }
+
+/* the navigation all four pages share */
+.app-nav { display: flex; gap: 2px; align-items: center; }
+.app-nav .nav-link { color: var(--side-dim); text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 13px; }
+.app-nav .nav-link:hover { color: var(--side-fg); background: var(--side-hover); }
+.app-nav .nav-link.active { color: #fff; background: var(--side-hover); }
+
+.composer-row { position: relative; }
+.emoji-box { bottom: 40px; left: 0; width: 320px; max-height: 220px; overflow-y: auto; display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; padding: 6px; }
+.emoji-box .emo { background: none; border: 0; font-size: 20px; padding: 2px; border-radius: 6px; cursor: pointer; }
+.emoji-box .emo:hover { background: var(--code); }
