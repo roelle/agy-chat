@@ -10,6 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp"}
 ARTIFACT_LIMIT = 400_000          # bytes shown inline; more is truncated
 TEXT_SUFFIXES = {".py", ".md", ".txt", ".json", ".jsonl", ".csv", ".diff", ".patch",
                  ".log", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".sh", ".js", ".ts",
@@ -53,15 +54,39 @@ class Team:
                 continue
         return out
 
+    def resolve(self, raw: str) -> tuple[Path | None, str | None]:
+        """(path, None) for something this team may show, else (None, why).
+
+        Absolute and ~ paths are taken as they are; a relative one is looked
+        for in each root (the team's tree, its workspaces, the shared
+        directory). Allowed: anything under a root, and anything in your home
+        directory that is not hidden -- an agent's "~/notes.md" is yours to
+        read, and ~/.ssh is not something a message should open."""
+        raw = (raw or "").strip()
+        if not raw:
+            return None, "not a path"
+        roots = self.roots()
+        try:
+            cand = Path(raw).expanduser()
+            if not cand.is_absolute():
+                found = [(r / cand).resolve() for r in roots if (r / cand).exists()]
+                cand = found[0] if found else (roots[0] / cand)
+            p = cand.resolve()
+        except (OSError, RuntimeError):
+            return None, "not a path"
+        if any(p == r or r in p.parents for r in roots):
+            return p, None
+        home = Path.home().resolve()
+        if home in p.parents and not any(part.startswith(".") for part in p.relative_to(home).parts):
+            return p, None
+        return None, "outside this team's workspaces and your home directory"
+
     def read_artifact(self, raw: str) -> dict:
         """A file's contents for the artifact pane, if it is somewhere this
-        team may show. Read-only; never follows a path outside the roots."""
-        try:
-            p = Path(raw).expanduser().resolve()
-        except (OSError, RuntimeError):
-            return {"error": "not a path"}
-        if not any(p == r or r in p.parents for r in self.roots()):
-            return {"error": "outside this team's workspaces", "path": str(p)}
+        team may show (see resolve). Read-only."""
+        p, why = self.resolve(raw)
+        if p is None:
+            return {"error": why, "path": raw}
         if not p.exists():
             return {"error": "no such file", "path": str(p)}
         if p.is_dir():
@@ -70,6 +95,8 @@ class Team:
                     "entries": [{"name": e.name + ("/" if e.is_dir() else ""),
                                  "path": str(e)} for e in entries]}
         size = p.stat().st_size
+        if p.suffix.lower() in IMAGE_SUFFIXES:
+            return {"path": str(p), "kind": "image", "size": size}
         if p.suffix.lower() not in TEXT_SUFFIXES:
             return {"path": str(p), "kind": "binary", "size": size}
         with p.open("rb") as f:

@@ -33,7 +33,7 @@ function toast(text, err) {
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const COLORS = ["#3a6ff7", "#19a463", "#d4891a", "#8a5cf6", "#d64545", "#2b8fd6", "#c2418f", "#5b8a72"];
 function color(name) { let h = 0; for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return COLORS[h % COLORS.length]; }
-function hhmm(ts) { return (ts || "").slice(11, 16); }
+function hhmm(ts) { return ts ? fmtTime(null, ts, "time") : ""; }
 
 // What people are called: an agent's alias, else its name; the operator's
 // roster name for "user". Every name shown goes through here.
@@ -49,39 +49,34 @@ function boardURL(taskId) {
   return `/board?team=${encodeURIComponent(S.team)}${taskId ? "#task=" + encodeURIComponent(taskId) : ""}`;
 }
 
-function inline(text) {
-  // text is already escaped
-  const mine = myHandles();
-  return text
-    .replace(/`([^`\n]+)`/g, (_, c) => `<code>${c}</code>`)
-    .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/(^|[\s(])((?:~|\/)[\w.~\-]+(?:\/[\w.\-]+)+\/?)/g,
-             (_, pre, p) => `${pre}<span class="pill-file" data-path="${p}">${p}</span>`)
-    .replace(/(^|[^\w@])@([A-Za-z0-9](?:[\w-]|\.(?=\w))*)/g, (_, pre, n) => `${pre}<span class="mention${mine.has(n.toLowerCase()) ? " me" : ""}">@${n}</span>`)
-    .replace(/\bhttps?:\/\/[^\s<]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+// The handle a mention names: an exact agent name, an alias, the name
+// ignoring case, or a unique name past a team prefix -- as agy-team resolves
+// it -- shown by the agent's alias. Operator handles are you.
+function resolveHandle(h) {
+  const low = h.toLowerCase(); const agents = S.state?.agents || [];
+  if (low === "here" || low === "all" || low === "everyone" || low === "channel") return { label: low, cls: "group" };
+  if (myHandles().has(low)) return { label: nameOf("user"), cls: "me", title: "you" };
+  const pick = (xs) => (xs.length === 1 ? xs[0] : null);
+  const a = agents.find((x) => x.name === h)
+    || pick(agents.filter((x) => [x.alias, ...(x.aliases || [])].filter(Boolean).some((y) => y.toLowerCase() === low)))
+    || pick(agents.filter((x) => x.name.toLowerCase() === low))
+    || pick(agents.filter((x) => { const n = x.name.toLowerCase(); return n.length > low.length && n.endsWith(low) && "-_.".includes(n[n.length - low.length - 1]); }));
+  return a ? { label: nameOf(a.name), title: a.name } : null;
 }
+Object.assign(RenderCtx, {
+  mention: resolveHandle,
+  channel: (c) => !!(S.state?.channels || {})[c],
+  task: (id) => (S.state?.tasks || []).find((t) => t.id === id) || null,
+  taskURL: (id) => boardURL(id),
+  channelURL: (c) => `/?team=${encodeURIComponent(S.team)}#channel=${encodeURIComponent(c)}`,
+  fileURL: (p) => `/api/file?${q({ path: p })}`,
+});
+const markdown = (src) => markdownHTML(src, RenderCtx);
 
-function markdown(src) {
-  const out = []; const lines = esc(src).split("\n"); let i = 0;
-  while (i < lines.length) {
-    const l = lines[i];
-    if (l.startsWith("```")) {
-      const buf = []; i++;
-      while (i < lines.length && !lines[i].startsWith("```")) buf.push(lines[i++]);
-      i++; out.push(`<pre><code>${buf.join("\n")}</code></pre>`); continue;
-    }
-    if (/^\s*[-*] /.test(l)) {
-      const items = [];
-      while (i < lines.length && /^\s*[-*] /.test(lines[i])) items.push(`<li>${inline(lines[i++].replace(/^\s*[-*] /, ""))}</li>`);
-      out.push(`<ul>${items.join("")}</ul>`); continue;
-    }
-    if (/^#{1,4} /.test(l)) { out.push(`<p><strong>${inline(l.replace(/^#+ /, ""))}</strong></p>`); i++; continue; }
-    if (!l.trim()) { i++; continue; }
-    const para = [];
-    while (i < lines.length && lines[i].trim() && !lines[i].startsWith("```") && !/^\s*[-*] /.test(lines[i])) para.push(inline(lines[i++]));
-    out.push(`<p>${para.join("<br>")}</p>`);
-  }
-  return out.join("");
+function avatarHTML(who, key) {
+  const f = (S.state?.avatars || {})[key];
+  return f ? `<div class="avatar img"><img src="/api/avatar?${q({ who: key })}" alt=""></div>`
+           : `<div class="avatar" style="background:${color(who)}">${esc(who[0] || "?").toUpperCase()}</div>`;
 }
 
 function sender(m) {
@@ -96,14 +91,15 @@ function msgHTML(m, opts = {}) {
   const quiet = QUIET.has(kind);
   const who = sender(m);
   const badge = kind !== "work" ? `<span class="badge ${quiet ? "quiet" : kind}">${esc(kind)}</span>` : "";
-  const task = m.task_id ? `<a class="badge quiet" href="${boardURL(m.task_id)}" target="agy-board" title="Open on the board">${esc(m.task_id)}</a>` : "";
+  const tk = m.task_id ? RenderCtx.task(m.task_id) : null;
+  const task = m.task_id ? `<a class="badge quiet" href="${boardURL(m.task_id)}" target="agy-board" title="${esc(m.task_id)} — open on the board">${esc(tk ? tk.title : m.task_id)}</a>` : "";
   const to = opts.showTo && m.to && !String(m.to).startsWith("#") ? ` <span class="when">→ ${esc(nameOf(m.to))}</span>` : "";
   const n = S.replyCounts[m.id] || 0;
   const replies = !opts.inThread && n ? `<div class="replies" data-thread="${esc(m.id)}">${n} repl${n === 1 ? "y" : "ies"}</div>` :
-                  !opts.inThread && m.id ? `<div class="replies" style="opacity:.0" onmouseover="this.style.opacity=.8" onmouseout="this.style.opacity=0"><span data-thread="${esc(m.id)}">reply in thread</span><span class="mk-task" data-mktask="${esc(m.id)}">make a task</span></div>` : "";
+                  !opts.inThread && m.id ? `<div class="replies faint"><span data-thread="${esc(m.id)}">reply in thread</span><span class="mk-task" data-mktask="${esc(m.id)}">make a task</span></div>` : "";
   return `<div class="msg ${quiet ? "quiet" : ""} ${LOUD.has(kind) ? kind : ""} ${mentionsMe(m) ? "mentions-me" : ""}" data-id="${esc(m.id || "")}">
-    <div class="avatar" style="background:${color(who)}">${esc(who[0] || "?").toUpperCase()}</div>
-    <div><div><span class="who">${esc(who)}</span>${to}<span class="when" title="${esc(m.ts)}">${hhmm(m.ts)}</span>${badge}${task}</div>
+    ${avatarHTML(who, m.from)}
+    <div><div><span class="who">${esc(who)}</span>${to}<span class="when" title="${esc(m.ts)} (the team's clock)">${esc(fmtTime(m.t, m.ts))}</span>${badge}${task}</div>
     <div class="body">${markdown(m.content || "")}</div>${replies}</div></div>`;
 }
 
@@ -159,7 +155,7 @@ async function refreshState() {
     if (ts > (S.seen[`${S.team}|${k}`] || "") && !(S.view && viewKey(S.view) === k)) S.atMe[k] = true;
   $("#me").textContent = `posting as ${S.state.author}`;
   renderSidebar(); renderAgents(); renderTasks(); renderSupervisor();
-  if (S.view) renderViewTasks();
+  if (S.view) { renderViewTasks(); renderBookmarks(); }
 }
 
 function renderSupervisor() {
@@ -281,7 +277,7 @@ async function openView(v) {
     $("#edit-members").classList.add("hidden");
     $("#new-task").classList.add("hidden");
   }
-  renderViewTasks();
+  renderViewTasks(); renderBookmarks();
   $("#composer").classList.toggle("hidden", !!c.archived ||
     (v.type === "dm" && (!v.pair.includes("user") || v.pair.includes("supervisor"))));
   const params = v.type === "channel" ? { channel: v.id } : { dm: v.pair.join(",") };
@@ -290,15 +286,77 @@ async function openView(v) {
   markSeen(); renderMessages(); renderSidebar();
 }
 
-// The tasks this channel is about: the ones that name it.
+// The tasks this channel is about: the ones that name it. The open ones
+// sit at the top, a few at a time; the panel's Tasks tab has them all.
+const TOP_TASKS = 3;
+const taskOwner = (t) => (t.owner ? nameOf(t.owner) : "unclaimed");
+function tokensText(u) {
+  if (!u || !u.tokens) return "";
+  const n = u.tokens >= 1e6 ? (u.tokens / 1e6).toFixed(1) + "M" : u.tokens >= 1e3 ? Math.round(u.tokens / 1e3) + "k" : String(u.tokens);
+  return `${n} tokens`;
+}
+function channelTasks() {
+  const v = S.view;
+  return v && v.type === "channel" ? (S.state.tasks || []).filter((t) => t.channel === v.id) : [];
+}
+function tasksOnTop() { return S.view?.type === "channel" && load(`agychat.tasksTop.${S.team}.${S.view.id}`, true); }
 function renderViewTasks() {
-  const box = $("#view-tasks"); const v = S.view;
-  const mine = v && v.type === "channel" ? (S.state.tasks || []).filter((t) => t.channel === v.id) : [];
+  const box = $("#view-tasks"); const mine = channelTasks();
   const open = mine.filter((t) => !TERMINAL.has(t.status));
-  box.classList.toggle("hidden", !mine.length);
-  box.innerHTML = open.map((t) => `<a class="task-chip" href="${boardURL(t.id)}" target="agy-board" title="${esc(t.status)} · ${esc(t.owner ? nameOf(t.owner) : "unclaimed")}">
-      <span class="st ${esc(t.status)}"></span>${esc(t.title)}</a>`).join("")
-    + (mine.length > open.length ? `<a class="task-chip" href="${boardURL()}" target="agy-board">${mine.length - open.length} closed</a>` : "");
+  box.classList.toggle("hidden", !mine.length || !tasksOnTop());
+  const shown = open.slice(0, TOP_TASKS);
+  box.innerHTML = shown.map((t) => `<a class="task-chip" href="${boardURL(t.id)}" target="agy-board" title="${esc(t.status)} · ${esc(t.id)}${t.usage ? " · " + esc(tokensText(t.usage)) : ""}">
+      <span class="st ${esc(t.status)}"></span>${esc(t.title)} <span class="owner">· ${esc(taskOwner(t))}</span></a>`).join("")
+    + (open.length > shown.length || mine.length > open.length
+       ? `<button class="task-chip more" data-panel="tasks">${open.length > shown.length ? `+${open.length - shown.length} open` : ""}${open.length > shown.length && mine.length > open.length ? " · " : ""}${mine.length > open.length ? `${mine.length - open.length} closed` : ""} ▸</button>` : "");
+  if (!$("#drawer-tasks").classList.contains("hidden")) renderPanelTasks();
+}
+function renderPanelTasks() {
+  const box = $("#drawer-tasks"); const v = S.view;
+  if (!v || v.type !== "channel") { box.innerHTML = `<div class="empty">Tasks are shown for a channel.</div>`; return; }
+  const all = load("agychat.panelTasksAll", false);
+  const mine = channelTasks(); const rows = all ? mine : mine.filter((t) => !TERMINAL.has(t.status));
+  const order = ["running", "claimed", "review", "blocked", "queued", "icebox", "done", "failed", "cancelled"];
+  rows.sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status) || (b.t_updated || 0) - (a.t_updated || 0));
+  box.innerHTML = `<div class="artifact-head">#${esc(v.id)} — tasks
+      <label class="toggle"><input type="checkbox" id="panel-all" ${all ? "checked" : ""}> closed too</label>
+      <label class="toggle"><input type="checkbox" id="panel-top" ${tasksOnTop() ? "checked" : ""}> show at the top</label></div>
+    ${rows.map((t) => `<div class="panel-task"><div class="t"><span class="st ${esc(t.status)}"></span><a href="${boardURL(t.id)}" target="agy-board">${esc(t.title)}</a></div>
+      <div class="meta"><span>${esc(taskOwner(t))}</span><span class="tag">${esc(t.status)}</span>${t.usage ? `<span class="tag" title="${esc(t.usage.direct)} turn(s) named it, ${esc(t.usage.inferred)} inferred from who was working on it">${esc(tokensText(t.usage))}</span>` : ""}
+      <span class="when">${esc(fmtTime(t.t_updated, t.updated_at, "short"))}</span></div></div>`).join("")
+      || `<div class="empty">${mine.length ? "No open tasks." : "No tasks in this channel. + Task in the header makes one."}</div>`}`;
+  $("#panel-all").onchange = (e) => { save("agychat.panelTasksAll", e.target.checked); renderPanelTasks(); };
+  $("#panel-top").onchange = (e) => { save(`agychat.tasksTop.${S.team}.${v.id}`, e.target.checked); renderViewTasks(); };
+}
+
+// Bookmarks on a channel: links, go links, paths, kept with the channel.
+function bookmarkHTML(b) {
+  const h = href(escHTML(b.url));
+  return h ? `<a class="bookmark" href="${h}" target="_blank" rel="noopener" title="${esc(b.url)}">🔖 ${esc(b.title)}</a>`
+           : `<span class="bookmark pill-file" data-path="${esc(b.url)}" title="${esc(b.url)}">🔖 ${esc(b.title)}</span>`;
+}
+function renderBookmarks() {
+  const box = $("#view-bookmarks"); const v = S.view;
+  const c = v && v.type === "channel" ? (S.state.channels || {})[v.id] || {} : null;
+  box.classList.toggle("hidden", !c);
+  if (!c) return;
+  box.innerHTML = (c.bookmarks || []).map(bookmarkHTML).join("")
+    + (c.archived ? "" : `<button class="bookmark add" data-bookmarks="1" title="Add or edit this channel's bookmarks">${(c.bookmarks || []).length ? "edit" : "+ bookmark"}</button>`);
+}
+function bookmarksModal() {
+  const name = S.view.id; const c = S.state.channels[name] || {};
+  const text = (c.bookmarks || []).map((b) => b.title && b.title !== b.url ? `${b.title} | ${b.url}` : b.url).join("\n");
+  modal(`<h3>#${esc(name)} bookmarks</h3>
+    <label>One per line: <code>title | link</code>, or just the link</label>
+    <textarea name="b" rows="7" placeholder="Runbook | go/runbook&#10;https://example.com/dashboard&#10;Design | ~/docs/design.md">${esc(text)}</textarea>
+    <div class="hint">A link can be a web address, a go link or a file path.</div>`,
+    async (fd) => {
+      const marks = String(fd.get("b") || "").split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
+        const [a, ...rest] = l.split("|"); return rest.length ? { title: a.trim(), url: rest.join("|").trim() } : { url: a.trim() };
+      });
+      await api("/api/bookmarks", { channel: name, bookmarks: marks });
+      await refreshState(); renderBookmarks();
+    });
 }
 
 function markSeen() {
@@ -330,7 +388,8 @@ function renderMessages() {
 function openDrawer(tab) {
   $("#drawer").classList.remove("hidden"); $("#drawer-split").classList.remove("hidden");
   for (const b of document.querySelectorAll(".tab")) b.classList.toggle("active", b.dataset.tab === tab);
-  for (const t of ["thread", "artifact", "activity"]) $(`#drawer-${t}`).classList.toggle("hidden", tab !== t);
+  for (const t of ["tasks", "thread", "artifact", "activity"]) $(`#drawer-${t}`).classList.toggle("hidden", tab !== t);
+  if (tab === "tasks") renderPanelTasks();
 }
 
 async function openThread(id) {
@@ -355,7 +414,12 @@ async function openArtifact(path) {
     let body;
     if (a.kind === "dir") body = `<ul class="dir-list">${a.entries.map((e) => `<li data-path="${esc(e.path)}">${esc(e.name)}</li>`).join("")}</ul>`;
     else if (a.kind === "binary") body = `<div class="empty">binary file, ${a.size} bytes</div>`;
-    else if (a.kind === "markdown") body = `<div class="artifact-md body">${markdown(a.content)}</div>`;
+    else if (a.kind === "image") body = `<div class="artifact-img"><img src="/api/file?${q({ path: a.path })}" alt="${esc(a.path)}"></div>`;
+    else if (a.kind === "markdown") {
+      const raw = load("agychat.mdRaw", false);
+      body = `<div class="md-toggle"><button class="btn small ghost" data-mdraw="${raw ? 0 : 1}" data-p="${esc(a.path)}">${raw ? "Rendered" : "Raw"}</button></div>`
+        + (raw ? `<div class="artifact">${esc(a.content)}</div>` : `<div class="artifact-md body">${markdown(a.content)}</div>`);
+    }
     else if (a.kind === "diff") body = `<div class="artifact">${esc(a.content).split("\n").map((l) =>
       `<span class="${l.startsWith("+") ? "add" : l.startsWith("-") ? "del" : l.startsWith("@@") ? "hunk" : ""}">${l}</span>`).join("\n")}</div>`;
     else body = `<div class="artifact">${esc(a.content)}</div>`;
@@ -370,7 +434,7 @@ async function openActivity(agent) {
   const box = $("#drawer-activity");
   const { events } = await api(`/api/activity?${q({ agent })}`);
   const rows = events.slice().reverse().map((e) => {
-    const when = `<span class="when">${esc((e.ts || "").slice(5, 16))}</span>`;
+    const when = `<span class="when">${esc(fmtTime(e.t, e.ts, "short"))}</span>`;
     if (e.event === "tool_call") {
       const args = e.args ? esc(JSON.stringify(e.args)).slice(0, 400) : "";
       return `<details class="act"><summary>${when} <code>${esc(e.tool || "tool")}</code>${e.error ? ' <span class="badge blocker">error</span>' : ""}</summary><pre>${args}${e.result ? "\n→ " + esc(String(e.result)).slice(0, 600) : ""}</pre></details>`;
@@ -468,7 +532,12 @@ window.addEventListener("focus", () => { document.title = "agy-chat"; });
 
 document.addEventListener("click", async (e) => {
   const nav = e.target.closest("[data-view]");
-  if (nav) return openView(JSON.parse(nav.dataset.view));
+  if (nav) { e.preventDefault(); return openView(JSON.parse(nav.dataset.view)); }
+  const pnl = e.target.closest("[data-panel]");
+  if (pnl) return openDrawer(pnl.dataset.panel);
+  if (e.target.closest("[data-bookmarks]")) return bookmarksModal();
+  const md = e.target.closest("[data-mdraw]");
+  if (md) { save("agychat.mdRaw", md.dataset.mdraw === "1"); return openArtifact(md.dataset.p); }
   const th = e.target.closest("[data-thread]");
   if (th) return openThread(th.dataset.thread);
   const mk = e.target.closest("[data-mktask]");
@@ -490,6 +559,48 @@ document.addEventListener("submit", async (e) => {
   e.preventDefault(); const ta = form.querySelector("textarea"); const text = ta.value.trim(); if (!text) return;
   try { await send(text, JSON.parse(form.dataset.where), S.thread); ta.value = ""; } catch (err) { toast(err.message, true); }
 });
+$("#open-panel").onclick = () => {
+  const v = S.view;
+  if (v?.type === "dm") { const other = v.pair.find((x) => x !== "user"); if (other && other !== "supervisor") return openActivity(other); }
+  openDrawer("tasks");
+};
+$("#prefs").onclick = () => openPrefs(() => { renderMessages(); renderAgents(); renderViewTasks(); if (S.thread) openThread(S.thread); });
+
+// --- attachments: paste, drop or 📎 -------------------------------------------------
+
+function fileToBase64(f) {
+  return new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = bad; r.readAsDataURL(f); });
+}
+async function uploadFiles(files, ta = $("#input")) {
+  for (const f of files) {
+    const d = new Date(); const pad = (n) => String(n).padStart(2, "0");
+    const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    const name = f.name && f.name !== "image.png" ? f.name : `pasted-${stamp}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`;
+    try {
+      toast(`attaching ${name}…`);
+      const r = await api("/api/attach", { name, data: await fileToBase64(f) });
+      const text = (f.type || "").startsWith("image/") ? `![${name}](${r.path})` : `[${name}](${r.path})`;
+      const pos = ta.selectionStart ?? ta.value.length; const pre = ta.value.slice(0, pos);
+      const ins = (pre && !pre.endsWith("\n") && !pre.endsWith(" ") ? " " : "") + text + " ";
+      ta.value = pre + ins + ta.value.slice(pos); ta.selectionStart = ta.selectionEnd = pos + ins.length; ta.focus();
+      toast(`attached ${name}`);
+    } catch (err) { toast(err.message, true); }
+  }
+}
+$("#attach").onclick = () => $("#attach-file").click();
+$("#attach-file").onchange = (e) => { uploadFiles([...e.target.files]); e.target.value = ""; };
+document.addEventListener("paste", (e) => {
+  const ta = e.target.closest?.("#input, .thread-compose textarea"); if (!ta) return;
+  const files = [...(e.clipboardData?.files || [])];
+  if (files.length) { e.preventDefault(); uploadFiles(files, ta); }
+});
+document.addEventListener("dragover", (e) => { if (e.target.closest?.("#composer, .thread-compose")) e.preventDefault(); });
+document.addEventListener("drop", (e) => {
+  const ta = e.target.closest?.("#composer, .thread-compose")?.querySelector("textarea"); if (!ta) return;
+  const files = [...(e.dataTransfer?.files || [])];
+  if (files.length) { e.preventDefault(); uploadFiles(files, ta); }
+});
+
 $("#drawer-close").onclick = () => { $("#drawer").classList.add("hidden"); $("#drawer-split").classList.add("hidden"); S.thread = null; };
 $("#team").onchange = (e) => { S.team = e.target.value; openTeam(); };
 $("#show-quiet").onchange = renderMessages;

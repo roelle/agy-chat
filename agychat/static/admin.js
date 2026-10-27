@@ -68,7 +68,7 @@ function renderAgents() {
     <td data-label="Memory model"><input type="text" data-f="memory_model" value="${esc(a.memory_model)}" placeholder="${esc(S.admin.memory_model || "same")}" title="Model for distill, memory review and retro turns"></td>
     <td data-label="Principal"><input type="checkbox" data-f="is_principal" ${a.is_principal ? "checked" : ""} title="Faces the user and gates what reaches them"></td>
     <td data-label="Tools off"><input type="text" data-f="tools_off" value="${esc(list(a.tools_off))}" placeholder="none"></td>
-    <td data-label="Aliases"><input type="text" data-f="aliases" value="${esc(list(a.aliases))}" placeholder="none"></td>
+    <td data-label="Alias"><input type="text" data-f="alias" value="${esc(a.alias)}" placeholder="none" title="The name it is shown by, and answers to as @alias"></td>
     <td class="row-actions"><button class="btn small hidden" data-act="save">Save</button>
       <button class="btn small ghost" data-act="remove">Remove</button></td></tr>`).join("")
     || `<tr><td colspan="8" class="sub">No agents on the roster.</td></tr>`;

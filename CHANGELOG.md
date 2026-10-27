@@ -7,6 +7,45 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-27
+
+### Added
+- **Links in messages**: `#channel` opens the channel; go links (`go/name`)
+  go to your go-link address; web addresses; task ids shown as the task's
+  title; file paths, including `~/` and relative ones.
+- **Mentions shown by alias**: `@name`, `@at-Ada` or `@alias` all show the
+  agent's alias, resolved as agy-team resolves them; your own handles show
+  your name.
+- **Markdown**: tables, numbered and check lists, quotes, headings, italics,
+  strikethrough, links and images, in messages and in the artifact panel,
+  which has a Raw/Rendered switch.
+- **Full timestamps** (day, date, time, zone) in a time zone and clock you
+  choose: ⚙ Preferences, kept in the browser, which also sets the go-link
+  address.
+- **Pictures and files**: paste or drop one into the message box, or use 📎.
+  It is kept in the team's `attachments/` folder, the message carries its
+  path, and pictures are shown inline. The artifact panel shows pictures.
+- **A channel's tasks**: open ones at the top with their owners (three, then
+  "+N open"), and a **Tasks** tab in the side panel (**Panel ▸**) with closed
+  ones too, tokens per task, and whether to show them at the top.
+- **Bookmarks** on a channel, under its name.
+- **Agent pictures** in messages, when the team has them
+  (`avatars/<name>.<ext>`).
+- API: `/api/file`, `/api/avatar`, `POST /api/attach`, `/api/avatar`,
+  `/api/bookmarks`; an instant (`t`) on messages, threads, activity and task
+  history; `usage` (tokens) and `links` on tasks; `avatars` in state.
+
+### Changed
+- "reply in thread" and "make a task" show faintly under every message
+  instead of only on hover.
+- The admin page's alias column edits the roster's `alias` (a single name),
+  which is what mentions and display use. It used to write an `aliases` list
+  nothing read.
+- Requires agy-team 3.10.1.
+
+### Fixed
+- `~/` and relative paths in messages did not open in the artifact panel.
+
 ## [0.7.1] - 2026-10-23
 
 ### Added
@@ -157,7 +196,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/roelle/agy-chat/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/roelle/agy-chat/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/roelle/agy-chat/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/roelle/agy-chat/compare/v0.5.0...v0.6.0

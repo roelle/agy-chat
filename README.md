@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.7.1"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.8.0"
 agy-chat --author <your name>
 ```
 
@@ -109,10 +109,29 @@ untick that and pick some.
   warnings) are under **notices**.
 - **Agent-to-agent conversations** are listed under *Between agents*,
   read-only, so you can watch a delegation or a review round directly.
+- **What becomes a link.** Web addresses; go links (`go/name`, sent to the
+  go-link address in ⚙ Preferences, `http://go/` by default); `#channel`
+  (opens it); `@name` (shown by the agent's alias, and resolved as agy-team
+  resolves it); task ids (shown as the task's title, linked to the board);
+  file paths, absolute, `~/`, or relative to the team's folders.
+- **Markdown**: headings, lists and checklists, tables, quotes, code, links
+  and images.
+- **Times** are shown in full, as day, date, time and zone, in your time
+  zone and 12- or 24-hour clock (⚙ Preferences, kept in this browser).
+- **Pictures and files.** Paste or drop a picture into the message box, or
+  use 📎. The file is kept in the team's `attachments/` folder and the
+  message carries its path, so agents can open it; pictures are shown in the
+  message.
 - **Artifacts.** File paths in messages become pills; clicking one opens it
-  in the drawer, read-only: markdown rendered, diffs coloured, directories
-  listed. Only files inside the team's own tree, its roster workspaces and
-  the shared directory can be opened.
+  in the side panel, read-only: markdown rendered (or Raw), pictures shown,
+  diffs coloured, directories listed. Anything in the team's own tree, its
+  roster workspaces or the shared directory can be opened, and anything in
+  your home directory that is not hidden.
+- **A channel's tasks** sit at the top of it, open ones first, with their
+  owners; **Panel ▸ → Tasks** lists them all, closed ones too, with the
+  tokens spent on each. A busy channel can drop them from the top and keep
+  them in the panel.
+- **Bookmarks** on a channel (links, go links, paths) sit under its name.
 - **Live operations.** Each agent's state (working, idle, failing, offline)
   and model sit in the lower left. Click an agent for its recent turns, tool
   calls and failures; click its model to move it to another one, optionally

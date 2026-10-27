@@ -215,3 +215,39 @@ body.dragging.col { cursor: col-resize; } body.dragging.row { cursor: row-resize
 .checks-tools { font-size: 12px; color: var(--dim); margin-bottom: 4px; }
 .checks-tools .link { background: none; border: 0; padding: 0; margin: 0; cursor: pointer; }
 .top-link { margin-left: 0; }
+
+/* links, mentions, task references */
+.chan-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+.chan-link:hover, .golink:hover { text-decoration: underline; }
+.golink { color: var(--accent); }
+.mention.group { background: var(--code); color: var(--dim); }
+.task-ref { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: 4px; background: var(--code); color: inherit; text-decoration: none; font-size: 13px; }
+.task-ref .st, .panel-task .st { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); display: inline-block; flex: none; }
+.st.running, .st.claimed { background: var(--ok); } .st.blocked, .st.failed { background: var(--bad); }
+.st.review { background: var(--review); } .st.done { background: var(--dim); }
+/* markdown */
+.md-h { font-weight: 700; margin: 6px 0 2px; } .md-h1 { font-size: 1.25em; } .md-h2 { font-size: 1.15em; } .md-h3 { font-size: 1.05em; }
+.md-table { overflow-x: auto; margin: 6px 0; }
+.md-table table { border-collapse: collapse; font-size: 13px; }
+.md-table th, .md-table td { border: 1px solid var(--line); padding: 3px 8px; text-align: left; vertical-align: top; }
+.md-table th { background: var(--code); }
+blockquote { margin: 4px 0; padding: 0 10px; border-left: 3px solid var(--line); color: var(--dim); }
+li.check { list-style: none; margin-left: -18px; }
+.inline-img { max-width: min(420px, 100%); max-height: 320px; border-radius: 6px; border: 1px solid var(--line); cursor: zoom-in; display: block; margin: 4px 0; }
+.artifact-img img { max-width: 100%; }
+.md-toggle { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+/* avatars, replies, bookmarks, task strip and panel */
+.avatar.img { background: none; overflow: hidden; } .avatar.img img { width: 100%; height: 100%; object-fit: cover; }
+.replies.faint { opacity: .35; } .msg:hover .replies.faint { opacity: .9; }
+.view-bookmarks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.bookmark { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--code); color: inherit; text-decoration: none; border: 0; cursor: pointer; }
+.bookmark.add { color: var(--dim); background: none; border: 1px dashed var(--line); }
+.task-chip .owner { color: var(--dim); }
+.task-chip.more { border: 0; cursor: pointer; color: var(--dim); }
+.panel-task { padding: 6px 2px; border-bottom: 1px solid var(--line); }
+.panel-task .t { display: flex; gap: 6px; align-items: center; }
+.panel-task .t a { color: inherit; text-decoration: none; } .panel-task .t a:hover { text-decoration: underline; }
+.panel-task .meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--dim); margin-top: 2px; }
+.panel-task .tag { background: var(--code); color: var(--fg); }
+.artifact-head .toggle { margin-left: 10px; display: inline-flex; }
+.top-icon { color: var(--side-fg); font-size: 16px; }

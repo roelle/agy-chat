@@ -24,6 +24,7 @@
   </div>
   <a id="admin-link" class="link top-link" target="agy-admin" title="Agents, norms, memories, update">Admin ↗</a>
   <div id="me" class="me"></div>
+  <button id="prefs" class="icon top-icon" title="Preferences: time zone, clock, go links">⚙</button>
 </header>
 
 <div class="main">
@@ -53,12 +54,14 @@
       <div>
         <div id="view-title" class="view-title"></div>
         <div id="view-sub" class="view-sub"></div>
+        <div id="view-bookmarks" class="view-bookmarks hidden"></div>
         <div id="view-tasks" class="view-tasks hidden"></div>
       </div>
       <div class="stream-tools">
         <label class="toggle"><input id="show-quiet" type="checkbox"> quiet updates</label>
         <button id="new-task" class="btn small ghost hidden" title="A task discussed in this channel">+ Task</button>
         <button id="edit-members" class="btn small ghost hidden">Channel…</button>
+        <button id="open-panel" class="btn small ghost" title="Open the side panel: this channel's tasks, threads, artifacts">Panel ▸</button>
       </div>
     </div>
     <div id="view-banner" class="banner hidden"></div>
@@ -66,6 +69,7 @@
     <form id="composer" class="composer">
       <div id="mention-box" class="popover mention hidden"></div>
       <textarea id="input" rows="2" placeholder="Message"></textarea>
+      <input id="attach-file" type="file" multiple class="hidden">
       <div class="composer-row">
         <select id="kind" title="Kind">
           <option value="work">work</option>
@@ -73,6 +77,7 @@
           <option value="blocker">blocker</option>
           <option value="fyi">fyi (never wakes)</option>
         </select>
+        <button type="button" id="attach" class="icon" title="Attach a file or picture (or paste / drop one into the box)">📎</button>
         <span id="compose-hint" class="hint"></span>
         <button class="btn" type="submit">Send</button>
       </div>
@@ -83,12 +88,14 @@
   <aside id="drawer" class="drawer hidden">
     <div class="drawer-head">
       <div class="tabs">
+        <button data-tab="tasks" class="tab">Tasks</button>
         <button data-tab="thread" class="tab">Thread</button>
         <button data-tab="artifact" class="tab">Artifact</button>
         <button data-tab="activity" class="tab">Activity</button>
       </div>
       <button id="drawer-close" class="icon" title="Close">×</button>
     </div>
+    <div id="drawer-tasks" class="drawer-body hidden"></div>
     <div id="drawer-thread" class="drawer-body"></div>
     <div id="drawer-artifact" class="drawer-body hidden"></div>
     <div id="drawer-activity" class="drawer-body hidden"></div>
@@ -97,6 +104,7 @@
 
 <div id="modal" class="modal hidden"><div class="modal-card" id="modal-card"></div></div>
 <div id="toast" class="toast hidden"></div>
+<script src="/static/common.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

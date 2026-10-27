@@ -38,6 +38,23 @@ from .teams import Team, discover
 
 STATIC = Path(__file__).resolve().parent / "static"
 COOKIE = "agychat"
+UPLOAD_BYTES = 30_000_000        # a JSON body carrying a base64 picture or attachment
+UPLOAD_PATHS = ("/api/attach", "/api/avatar")
+
+
+def epoch(ts) -> float | None:
+    """The record's timestamps carry no zone (or are UTC ISO, for tasks).
+    The page is told the instant ("t"), so it can show any zone the person
+    picks."""
+    from agyteam.record import instant
+    return instant(ts)
+
+
+def stamped(rows):
+    for r in rows:
+        if isinstance(r, dict) and r.get("ts") and "t" not in r:
+            r["t"] = epoch(r["ts"])
+    return rows
 
 
 class App:
@@ -55,6 +72,7 @@ class App:
         self.updating: dict = {"state": "idle", "log": []}
         self.argv: list[str] = []        # main's arguments, for a restart in place
         self.reexec = self._reexec
+        self._usage_cache: dict = {}
         self.refresh()
 
     def refresh(self) -> dict[str, Team]:
@@ -86,6 +104,7 @@ class App:
         for a in rec.roster().get("agents", []):
             n = a["name"]
             agents.append({"name": n, "alias": a.get("alias"), "role": a.get("role", ""),
+                           "aliases": a.get("aliases") or [],
                            "presence": presence.get(n, {}), "model": models.get(n, {})})
         sup = rec.supervisor()
         # Where an agent last mentioned the operator, keyed as the client keys
@@ -100,18 +119,42 @@ class App:
                 "agents": agents, "channels": rec.channels(),
                 "conversations": rec.conversations(), "tasks": self.tasks(team)[:300],
                 "supervisor": sup, "stopped": rec.stopped(),
-                "reply_counts": rec.reply_counts()}
+                "reply_counts": rec.reply_counts(), "avatars": rec.avatars(),
+                "server_tz": time.strftime("%Z")}
 
     TASK_FIELDS = ("id", "project", "title", "owner", "status", "note", "check_after", "until",
                    "requires_review", "updated_at", "created_at", "created_by", "evidence",
-                   "channel", "rank", "deadline", "collaborators")
+                   "channel", "rank", "deadline", "collaborators", "links")
+
+    def usage(self, team_dir) -> dict:
+        """Record.task_usage, recomputed only when the event or task log changed."""
+        key = []
+        for f in ("events.jsonl", "tasks.jsonl"):
+            try:
+                st = (Path(team_dir) / f).stat()
+                key.append((st.st_mtime_ns, st.st_size))
+            except OSError:
+                key.append(None)
+        hit = self._usage_cache.get(str(team_dir))
+        if hit and hit[0] == key:
+            return hit[1]
+        try:
+            usage = Record(team_dir).task_usage()
+        except Exception:
+            usage = {}
+        self._usage_cache[str(team_dir)] = (key, usage)
+        return usage
 
     def tasks(self, team: str) -> list[dict]:
-        rec = Record(self.team(team).dir)
+        t = self.team(team)
+        rec = Record(t.dir)
         reviewed = {r.get("task_id") for r in rec.reviews()
                     if r.get("verdict") in ("approved", "waived") and r.get("task_id")}
-        return [{k: t.get(k) for k in self.TASK_FIELDS} | {"reviewed": t.get("id") in reviewed}
-                for t in rec.tasks()]
+        usage = self.usage(t.dir)
+        return [{k: x.get(k) for k in self.TASK_FIELDS}
+                | {"reviewed": x.get("id") in reviewed, "usage": usage.get(x.get("id")),
+                   "t_updated": epoch(x.get("updated_at")), "t_created": epoch(x.get("created_at"))}
+                for x in rec.tasks()]
 
     def task(self, team: str, task_id: str) -> dict:
         """One task with everything about it: its log, its messages, its reviews."""
@@ -122,14 +165,14 @@ class App:
         if row is None:
             raise LookupError(f"no task {task_id}")
         return {"task": row,
-                "history": [e for e in tasks_lib.read(t.dir) if e.get("id") == task_id],
-                "messages": [m for m in rec.bus() if m.get("task_id") == task_id][-200:],
-                "reviews": [r for r in rec.reviews() if r.get("task_id") == task_id]}
+                "history": stamped([e for e in tasks_lib.read(t.dir) if e.get("id") == task_id]),
+                "messages": stamped([m for m in rec.bus() if m.get("task_id") == task_id][-200:]),
+                "reviews": stamped([r for r in rec.reviews() if r.get("task_id") == task_id])}
 
     def messages(self, team: str, q: dict) -> dict:
         rec = Record(self.team(team).dir)
         if q.get("thread"):
-            return {"messages": rec.thread(q["thread"])}
+            return {"messages": stamped(rec.thread(q["thread"]))}
         if q.get("channel"):
             # A deleted channel's history stays in the record, out of sight.
             gone = (rec.channels().get(q["channel"]) or {}).get("deleted")
@@ -140,8 +183,39 @@ class App:
             rows = rec.messages(dm=(a, b), include_plumbing="supervisor" in (a, b))
         else:
             rows = []
-        return {"messages": rows[-int(q.get("limit") or 500):],
+        return {"messages": stamped(rows[-int(q.get("limit") or 500):]),
                 "reply_counts": rec.reply_counts()}
+
+    # --- pictures, attachments, bookmarks ---------------------------------------
+
+    def attach(self, team: str, body: dict) -> dict:
+        import base64
+        try:
+            data = base64.b64decode(body.get("data") or "", validate=True)
+        except ValueError:
+            raise actions.OperatorError("send the file as base64") from None
+        return actions.attach(self.team(team).dir, data, body.get("name") or "file",
+                              by=self.author)
+
+    def avatar(self, team: str, body: dict) -> dict:
+        import base64
+        t = self.team(team)
+        if not body.get("data"):
+            return actions.set_avatar(t.dir, body.get("who") or "", None)
+        try:
+            data = base64.b64decode(body["data"], validate=True)
+        except ValueError:
+            raise actions.OperatorError("send the picture as base64") from None
+        return actions.set_avatar(t.dir, body.get("who") or "", data, body.get("ext") or ".png")
+
+    def bookmarks(self, team: str, body: dict) -> dict:
+        t = self.team(team)
+        if body.get("task"):
+            return {"task": actions.set_task_links(t.dir, body["task"], body.get("bookmarks") or [])}
+        if body.get("channel"):
+            return {"bookmarks": actions.set_channel_bookmarks(t.dir, body["channel"],
+                                                                body.get("bookmarks") or [])}
+        raise actions.OperatorError("say which channel or task")
 
     # --- changes ------------------------------------------------------------------
 
@@ -367,6 +441,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _raw(self, p: Path):
+        """A file's bytes, for <img> and the like. A file here may have been
+        written by an agent: the sandbox keeps an SVG opened in a tab from
+        running script as you."""
+        ctype = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
+        try:
+            data = p.read_bytes()
+        except OSError:
+            return self._json({"error": "unreadable"}, 404)
+        return self._send(200, data, ctype, {"Content-Security-Policy": "sandbox; script-src 'none'",
+                                             "Content-Disposition": "inline"})
+
     def _json(self, obj, status: int = 200):
         self._send(status, json.dumps(obj, default=str).encode(), "application/json")
 
@@ -457,12 +543,23 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/activity":
                 rows = [e for e in Record(self.app.team(team).dir).events()
                         if e.get("agent") == q.get("agent")]
-                return self._json({"events": rows[-120:]})
+                return self._json({"events": stamped(rows[-120:])})
             if path == "/api/wiki":
                 t = self.app.team(team)
                 return self._json({"norms": Record(t.dir).norms(), "memories": t.memories()})
             if path == "/api/events":
                 return self._events(team)
+            if path == "/api/file":
+                p, why = self.app.team(team).resolve(q.get("path", ""))
+                if p is None or not p.is_file():
+                    return self._json({"error": why or "no such file"}, 404)
+                return self._raw(p)
+            if path == "/api/avatar":
+                t = self.app.team(team)
+                f = actions.avatars(t.dir).get(q.get("who", ""))
+                if not f:
+                    return self._json({"error": "no picture"}, 404)
+                return self._raw(t.dir / actions.AVATARS / f)
             if path == "/api/admin":
                 return self._json(self.app.admin(team))
             if path == "/api/memories":
@@ -488,13 +585,17 @@ class Handler(BaseHTTPRequestHandler):
         path, q = self._query()
         try:
             length = int(self.headers.get("Content-Length") or 0)
-            body = json.loads(self.rfile.read(min(length, 1_000_000)) or b"{}")
+            cap = UPLOAD_BYTES if path in UPLOAD_PATHS else 1_000_000
+            if length > cap:
+                return self._json({"error": f"too large (at most {cap // 1_000_000} MB)"}, 413)
+            body = json.loads(self.rfile.read(length) or b"{}")
             team = body.get("team") or q.get("team", "")
             route = {"/api/post": self.app.post, "/api/channel": self.app.channel,
                      "/api/model": self.app.model, "/api/supervisor": self.app.supervisor,
                      "/api/task": self.app.task_action, "/api/agent": self.app.agent,
                      "/api/norms": self.app.norms, "/api/memory": self.app.memory,
-                     "/api/update": self.app.update}
+                     "/api/update": self.app.update, "/api/attach": self.app.attach,
+                     "/api/avatar": self.app.avatar, "/api/bookmarks": self.app.bookmarks}
             fn = route.get(path)
             if fn is None:
                 return self._json({"error": "unknown endpoint"}, 404)
@@ -520,6 +621,8 @@ class Handler(BaseHTTPRequestHandler):
             while True:
                 items = feed.poll()
                 for it in items:
+                    if isinstance(it, dict) and isinstance(it.get("item"), dict):
+                        stamped([it["item"]])
                     self.wfile.write(b"data: " + json.dumps(it, default=str).encode() + b"\n\n")
                 now = time.monotonic()
                 if now - last_beat > 15:
