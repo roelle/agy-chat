@@ -7,6 +7,13 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-10-28
+
+### Changed
+- Requires agy-team 3.12.0: distills and cycles asked of a running
+  supervisor run in parallel, alongside the team's work, instead of one
+  after another with the team waiting.
+
 ## [0.10.1] - 2026-10-27
 
 ### Added
@@ -260,7 +267,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.10.2...HEAD
+[0.10.2]: https://github.com/roelle/agy-chat/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/roelle/agy-chat/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/roelle/agy-chat/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/roelle/agy-chat/compare/v0.8.0...v0.9.0
