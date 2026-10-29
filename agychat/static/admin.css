@@ -42,6 +42,24 @@ body.admin-page { display: block; overflow: auto; }
 .log { background: var(--code); border-radius: 8px; padding: 10px 12px; max-height: 40vh; overflow: auto;
        white-space: pre-wrap; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .vers td { padding: 2px 12px 2px 0; }
+.recall-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.recall-legend { display: flex; gap: 12px; font-size: 12px; color: var(--dim); margin-left: auto; }
+.recall-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.recall-legend .miss { width: 7px; height: 7px; border-radius: 50%; }
+.recall-chart { display: grid; grid-template-columns: repeat(14, 1fr); gap: 2px; margin: 10px 0 4px; }
+.recall-day { display: flex; flex-direction: column; align-items: stretch; cursor: default; }
+.recall-day .col { height: 64px; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px;
+                   border-bottom: 1px solid var(--line); padding: 0 2px; }
+.recall-day .col span { display: block; min-height: 0; }
+.recall-day .col .none { background: var(--line); border-radius: 0 0 0 0; }
+.recall-day .col .offered { background: var(--accent); }
+.recall-day .col span:first-child { border-radius: 4px 4px 0 0; }
+.recall-day .col:hover span { filter: brightness(1.12); }
+.recall-day .miss { height: 12px; text-align: center; font-size: 10px; line-height: 12px; color: var(--dim); }
+.recall-day .miss i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--bad); }
+.recall-day .lbl { text-align: center; font-size: 10px; color: var(--dim); }
+.recall-misses { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
+.recall-misses li { margin: 4px 0; }
 .state-ok { color: var(--ok); }
 .state-warn { color: var(--warn); }
 .state-bad { color: var(--bad); }

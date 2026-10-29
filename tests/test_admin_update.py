@@ -162,3 +162,17 @@ def test_the_favicon_is_served_without_the_token(server):
         r = c.getresponse()
         assert r.status == 200 and r.getheader("Content-Type") == "image/svg+xml" \
             and r.read().startswith(b"<svg")
+
+
+def test_memories_come_with_how_recall_has_gone(server):
+    app, port, td, _ = server
+    import time
+    now = time.strftime("%Y-%m-%d %H:%M:%S")
+    with (td / "events.jsonl").open("a") as f:
+        f.write(json.dumps({"ts": now, "event": "recall", "agent": "coder", "picked": ["build"], "hints": []}) + "\n")
+        f.write(json.dumps({"ts": now, "event": "recall_miss", "agent": "coder", "memory": "build",
+                            "correction": "run make", "learned": ["make"]}) + "\n")
+    _, m = call(port, "GET", "/api/memories?team=demo&agent=coder", token=app.token)
+    r = m["recall"]
+    assert r["enabled"] is False and r["days"][-1]["wakes"] == 1 and r["days"][-1]["misses"] == 1
+    assert r["memories"]["build"] == {"offered": 1, "hinted": 0, "missed": 1, "last_offered": now}

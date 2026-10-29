@@ -161,17 +161,57 @@ $("#save-norms").onclick = async () => {
 // --- memories -------------------------------------------------------------------------
 
 const day = (ts) => (ts || "").slice(0, 10);
+const recallOf = (m) => S.mem?.recall?.memories?.[m.name] || {};
 function memoryMeta(m) {
   const since = m.created ? day(m.created) : m.known_since ? `before ${day(m.known_since)}` : "?";
+  const r = recallOf(m);
+  const recalled = r.offered ? ` · recalled ${r.offered}×, last ${esc(day(r.last_offered))}` : "";
+  const missed = r.missed ? ` · <span class="state-bad">missed ${r.missed}×</span>` : "";
   return `since ${esc(since)} · ${m.revisions || 0} revision${m.revisions === 1 ? "" : "s"} · `
-    + `${m.reads ? `${m.reads} read${m.reads === 1 ? "" : "s"}, last ${esc(day(m.last_read))}` : `<span class="state-warn">never read</span>`}`;
+    + `${m.reads ? `${m.reads} read${m.reads === 1 ? "" : "s"}, last ${esc(day(m.last_read))}` : `<span class="state-warn">never read</span>`}`
+    + recalled + missed;
+}
+const PLURALS = { memory: "memories", miss: "misses" };
+const plural = (n, w) => `${n} ${n === 1 ? w : PLURALS[w] || w + "s"}`;
+function renderRecall() {
+  const box = $("#recall"); const r = S.mem?.recall;
+  if (!r || (!r.enabled && !r.days.some((d) => d.wakes || d.misses))) {
+    box.classList.toggle("hidden", !r);
+    if (r) box.innerHTML = `<div class="recall-head"><strong>Recall</strong><span class="sub">Off for this team. With
+      <code>"memory_recall": true</code> in the roster, each wake is offered the agent's own memories that bear on it.</span></div>`;
+    return;
+  }
+  box.classList.remove("hidden");
+  const days = r.days; const top = Math.max(1, ...days.map((d) => d.wakes));
+  const tot = days.reduce((a, d) => ({ wakes: a.wakes + d.wakes, offered: a.offered + d.offered,
+    memories: a.memories + d.memories, misses: a.misses + d.misses, errors: a.errors + d.errors }),
+    { wakes: 0, offered: 0, memories: 0, misses: 0, errors: 0 });
+  const cols = days.map((d) => {
+    const tip = `${d.day}: ${plural(d.wakes, "wake")}, ${d.offered} offered memories (${plural(d.memories, "memory")}), `
+      + `${plural(d.misses, "miss")}${d.errors ? `, ${plural(d.errors, "judge error")}` : ""}`;
+    const h = (n) => `${(64 - 2) * n / top}px`;
+    return `<div class="recall-day" title="${esc(tip)}">
+      <div class="col">${d.wakes - d.offered ? `<span class="none" style="height:${h(d.wakes - d.offered)}"></span>` : ""}${d.offered ? `<span class="offered" style="height:${h(d.offered)}"></span>` : ""}</div>
+      <div class="miss">${d.misses ? `<i></i>${d.misses > 1 ? d.misses : ""}` : ""}</div>
+      <div class="lbl">${esc(d.day.slice(8))}</div></div>`;
+  }).join("");
+  const misses = (r.misses || []).map((x) => `<li><strong>${esc(x.memory || "?")}</strong>
+    <span class="sub">${esc(x.ts || "")}${x.learned?.length ? ` · learned: ${esc(x.learned.slice(0, 8).join(", "))}` : ""}</span>
+    ${x.correction ? `<div class="sub">“${esc(x.correction.slice(0, 200))}”</div>` : ""}</li>`).join("");
+  box.innerHTML = `<div class="recall-head"><strong>Recall, last ${days.length} days</strong>
+      <span class="sub">${plural(tot.wakes, "wake")}; ${tot.offered} offered ${plural(tot.memories, "memory")}; ${plural(tot.misses, "miss")}${tot.errors ? `; ${plural(tot.errors, "judge error")}` : ""}${r.enabled ? "" : " · now off"}</span>
+      <span class="recall-legend"><span><i style="background:var(--accent)"></i>memories offered</span>
+        <span><i style="background:var(--line)"></i>nothing offered</span>
+        <span><i class="miss" style="background:var(--bad)"></i>miss</span></span></div>
+    <div class="recall-chart" role="img" aria-label="Wakes per day for the last ${days.length} days, split by whether memories were offered">${cols}</div>
+    ${misses ? `<details><summary class="sub">Recent misses: a correction restated a memory the agent was not shown</summary><ul class="recall-misses">${misses}</ul></details>` : ""}`;
 }
 async function loadMemories() {
   const agent = $("#mem-agent").value; if (!agent) { $("#memories").innerHTML = ""; return; }
   let r;
   try { r = await api(`/api/memories?${q({ agent })}`); }
   catch (err) { toast(err.message, true); r = { memories: [], archived: [], reviews: [] }; }
-  S.mem = r; renderMemories();
+  S.mem = r; renderRecall(); renderMemories();
 }
 function renderMemories() {
   const r = S.mem || { memories: [], archived: [], reviews: [] }; const agent = $("#mem-agent").value;
@@ -181,6 +221,8 @@ function renderMemories() {
     most: (a, b) => (b.reads || 0) - (a.reads || 0),
     oldest: (a, b) => String(a.created || a.known_since || "").localeCompare(String(b.created || b.known_since || "")),
     revised: (a, b) => (b.revisions || 0) - (a.revisions || 0),
+    recalled: (a, b) => (recallOf(b).offered || 0) - (recallOf(a).offered || 0) || a.name.localeCompare(b.name),
+    missed: (a, b) => (recallOf(b).missed || 0) - (recallOf(a).missed || 0) || a.name.localeCompare(b.name),
   };
   S.memories = [...r.memories].filter((m) => !$("#mem-unread").checked || !m.reads).sort(sorts[$("#mem-sort").value] || sorts.name);
   const unread = r.memories.filter((m) => !m.reads).length;

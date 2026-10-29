@@ -7,6 +7,22 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-29
+
+### Added
+- **Recall on the Memories page.** For the chosen agent: two weeks of wakes
+  per day, split by whether memories were offered, with misses marked
+  (hover a day for its numbers). Then the recent misses, each with the
+  correction that restated the memory and the cues it learned. Each memory
+  says how often it was recalled and missed, and the list sorts by "most
+  recalled" and "missed by recall". When recall is off for the team, the
+  page says how to turn it on.
+
+### Fixed
+- Requires agy-team 3.14.0: a reply to a reply in a thread goes under the
+  thread's first message, so it shows in the thread. Agents' answers that
+  had disappeared this way reappear in their threads.
+
 ## [0.10.3] - 2026-10-29
 
 ### Changed

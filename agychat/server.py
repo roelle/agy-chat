@@ -354,8 +354,8 @@ class App:
         return actions.set_norms(self.team(team).dir, body.get("text") or "", by=self.author)
 
     def memories(self, team: str, agent: str) -> dict:
-        """One agent's memories with their history, its archive, and its
-        recent memory reviews."""
+        """One agent's memories with their history, its archive, its recent
+        memory reviews, and how recall has gone for it."""
         t = self.team(team)
         rec = Record(t.dir)
         content = {m["name"]: m["content"] for m in actions.memories(t.dir, agent)}
@@ -367,8 +367,9 @@ class App:
         reviews = [e for e in rec.events("memory_review") if e.get("agent") == agent][-5:]
         queued = any(r.get("action") == "review" and r.get("agent") == agent
                      for r in _distill_queue().pending(t.dir))
+        recall = rec.recall_stats(agent) if hasattr(rec, "recall_stats") else None
         return {"memories": stats, "archived": rec.memory_archive(agent),
-                "reviews": list(reversed(reviews)), "review_queued": queued}
+                "reviews": list(reversed(reviews)), "review_queued": queued, "recall": recall}
 
     def memory(self, team: str, body: dict) -> dict:
         t = self.team(team)

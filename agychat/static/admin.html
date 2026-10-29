@@ -74,11 +74,13 @@
       <label class="inline">Sort <select id="mem-sort">
         <option value="name">name</option><option value="least">least read</option>
         <option value="most">most read</option><option value="oldest">oldest</option>
-        <option value="revised">most revised</option></select></label>
+        <option value="revised">most revised</option><option value="recalled">most recalled</option>
+        <option value="missed">missed by recall</option></select></label>
       <label class="inline"><input type="checkbox" id="mem-unread"> never read</label>
       <button id="new-memory" class="btn small ghost">+ Memory</button>
       <button id="review-now" class="btn small">Review now</button></div>
     <div id="mem-summary" class="sub"></div>
+    <div id="recall" class="card hidden"></div>
     <div id="memories"></div>
     <h3>Recent reviews</h3>
     <div id="reviews"></div>
