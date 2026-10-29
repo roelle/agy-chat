@@ -7,6 +7,22 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-29
+
+### Changed
+- **A channel's tasks live in the side panel.** The header used to show the
+  open ones as chips, which grew it by a line for every few long titles.
+  The header now has one button, "Tasks · N open ▸" (hover it for the list),
+  that opens the panel's Tasks tab. The panel's "show at the top" option is
+  gone with the chips.
+
+### Fixed
+- **The header's buttons overflowed into the panel** when the chat pane was
+  narrow (three panes open). They now stay together and wrap as a block
+  under the channel name and members, and inside that block when even one
+  line is too wide. Long channel names and topics wrap instead of pushing
+  the buttons out.
+
 ## [0.11.0] - 2026-10-29
 
 ### Added

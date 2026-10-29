@@ -295,9 +295,9 @@ async function openView(v) {
   markSeen(); renderMessages(); renderSidebar();
 }
 
-// The tasks this channel is about: the ones that name it. The open ones
-// sit at the top, a few at a time; the panel's Tasks tab has them all.
-const TOP_TASKS = 3;
+// The tasks this channel is about: the ones that name it. They live in the
+// panel's Tasks tab; the header has only a count that opens it. Chips in the
+// header grew it by a line or more per few tasks, and squeezed the tools.
 const taskOwner = (t) => (t.owner ? nameOf(t.owner) : "unclaimed");
 function tokensText(u) {
   if (!u || !u.tokens) return "";
@@ -308,16 +308,14 @@ function channelTasks() {
   const v = S.view;
   return v && v.type === "channel" ? (S.state.tasks || []).filter((t) => t.channel === v.id) : [];
 }
-function tasksOnTop() { return S.view?.type === "channel" && load(`agychat.tasksTop.${S.team}.${S.view.id}`, true); }
 function renderViewTasks() {
-  const box = $("#view-tasks"); const mine = channelTasks();
+  const btn = $("#view-tasks"); const mine = channelTasks();
   const open = mine.filter((t) => !TERMINAL.has(t.status));
-  box.classList.toggle("hidden", !mine.length || !tasksOnTop());
-  const shown = open.slice(0, TOP_TASKS);
-  box.innerHTML = shown.map((t) => `<a class="task-chip" href="${boardURL(t.id)}" title="${esc(t.status)} · ${esc(t.id)}${t.usage ? " · " + esc(tokensText(t.usage)) : ""}">
-      <span class="st ${esc(t.status)}"></span>${esc(t.title)} <span class="owner">· ${esc(taskOwner(t))}</span></a>`).join("")
-    + (open.length > shown.length || mine.length > open.length
-       ? `<button class="task-chip more" data-panel="tasks">${open.length > shown.length ? `+${open.length - shown.length} open` : ""}${open.length > shown.length && mine.length > open.length ? " · " : ""}${mine.length > open.length ? `${mine.length - open.length} closed` : ""} ▸</button>` : "");
+  btn.classList.toggle("hidden", !mine.length);
+  btn.textContent = open.length ? `Tasks · ${open.length} open ▸` : "Tasks ▸";
+  btn.title = open.length
+    ? open.slice(0, 8).map((t) => `${t.status} · ${t.title} · ${taskOwner(t)}`).join("\n") + (open.length > 8 ? `\n+${open.length - 8} more` : "")
+    : `${mine.length} closed task${mine.length === 1 ? "" : "s"}`;
   if (!$("#drawer-tasks").classList.contains("hidden")) renderPanelTasks();
 }
 function renderPanelTasks() {
@@ -328,14 +326,12 @@ function renderPanelTasks() {
   const order = ["running", "claimed", "review", "blocked", "queued", "icebox", "done", "failed", "cancelled"];
   rows.sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status) || (b.t_updated || 0) - (a.t_updated || 0));
   box.innerHTML = `<div class="artifact-head">#${esc(v.id)} — tasks
-      <label class="toggle"><input type="checkbox" id="panel-all" ${all ? "checked" : ""}> closed too</label>
-      <label class="toggle"><input type="checkbox" id="panel-top" ${tasksOnTop() ? "checked" : ""}> show at the top</label></div>
+      <label class="toggle"><input type="checkbox" id="panel-all" ${all ? "checked" : ""}> closed too</label></div>
     ${rows.map((t) => `<div class="panel-task"><div class="t"><span class="st ${esc(t.status)}"></span><a href="${boardURL(t.id)}">${esc(t.title)}</a></div>
       <div class="meta"><span>${esc(taskOwner(t))}</span><span class="tag">${esc(t.status)}</span>${t.usage ? `<span class="tag" title="${esc(t.usage.direct)} turn(s) named it, ${esc(t.usage.inferred)} inferred from who was working on it">${esc(tokensText(t.usage))}</span>` : ""}
       <span class="when">${esc(fmtTime(t.t_updated, t.updated_at, "short"))}</span></div></div>`).join("")
       || `<div class="empty">${mine.length ? "No open tasks." : "No tasks in this channel. + Task in the header makes one."}</div>`}`;
   $("#panel-all").onchange = (e) => { save("agychat.panelTasksAll", e.target.checked); renderPanelTasks(); };
-  $("#panel-top").onchange = (e) => { save(`agychat.tasksTop.${S.team}.${v.id}`, e.target.checked); renderViewTasks(); };
 }
 
 // Bookmarks on a channel: links, go links, paths, kept with the channel.

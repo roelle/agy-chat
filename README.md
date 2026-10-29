@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.11.0"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.11.1"
 agy-chat --author <your name>
 ```
 
@@ -134,10 +134,10 @@ untick that and pick some.
   diffs coloured, directories listed. Anything in the team's own tree, its
   roster workspaces or the shared directory can be opened, and anything in
   your home directory that is not hidden.
-- **A channel's tasks** sit at the top of it, open ones first, with their
-  owners; **Panel ▸ → Tasks** lists them all, closed ones too, with the
-  tokens spent on each. A busy channel can drop them from the top and keep
-  them in the panel.
+- **A channel's tasks** live in the side panel: **Tasks · N open ▸** in the
+  channel's header opens it (hover it for the open ones). The panel lists
+  them with their owners, open ones first, closed ones too if you like,
+  and the tokens spent on each.
 - **Bookmarks** on a channel (links, go links, paths) sit under its name.
 - **Emoji**: 😀 in the message box, or type `:` and a name (`:rocket:`), or
   your system's picker.
