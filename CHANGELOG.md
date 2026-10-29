@@ -7,6 +7,13 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-10-29
+
+### Changed
+- Requires agy-team 3.13.0, which adds recall: before a turn, an agent is
+  reminded of its own memories that bear on the mail, chosen by a fast
+  model. Off by default; `"memory_recall": true` in the roster turns it on.
+
 ## [0.10.2] - 2026-10-28
 
 ### Changed
