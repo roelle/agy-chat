@@ -10,6 +10,8 @@ const S = {
   // When each thread was last opened, by root id; and, for the view on
   // screen, what had been seen before it was opened (`base`).
   tseen: load("agychat.tseen", {}), base: "", fresh: {},
+  // Unsent text, per view: what you type in one channel stays there.
+  drafts: load("agychat.drafts", {}),
 };
 const TERMINAL = new Set(["done", "failed", "cancelled"]);
 
@@ -242,6 +244,7 @@ function renderAgents() {
   $("#agents").innerHTML = S.state.agents.map((a) => {
     const p = a.presence || {}; const m = a.model || {};
     const state = { running: `working${p.detail ? " — for " + p.detail : ""} since ${hhmm(p.since)}`,
+                    held: `waiting: ${p.detail || "hop budget spent"}; your messages still wake it`,
                     failing: `last turn failed: ${p.detail || ""}`, idle: `idle${p.since ? ", last turn " + hhmm(p.since) : ""}`,
                     offline: "offline (no supervisor)" }[p.state] || "";
     const over = (m.source || "").startsWith("override");
@@ -277,6 +280,7 @@ function renderTasks() {
 }
 
 async function openView(v) {
+  keepDraft();
   S.view = v; save(`agychat.view.${S.team}`, v);
   const st = S.state;
   const c = v.type === "channel" ? (st.channels || {})[v.id] || {} : {};
@@ -303,6 +307,8 @@ async function openView(v) {
     $("#new-task").classList.add("hidden");
   }
   renderViewTasks(); renderBookmarks();
+  S.draftFor = `${S.team}|${viewKey(v)}`;
+  $("#input").value = S.drafts[S.draftFor] || "";
   $("#composer").classList.toggle("hidden", !!c.archived ||
     (v.type === "dm" && (!v.pair.includes("user") || v.pair.includes("supervisor"))));
   const params = v.type === "channel" ? { channel: v.id } : { dm: v.pair.join(",") };
@@ -549,13 +555,21 @@ $("#composer").addEventListener("submit", async (e) => {
   const text = $("#input").value.trim(); if (!text) return;
   const v = S.view;
   const where = v.type === "channel" ? { channel: v.id } : { to: v.pair.find((p) => p !== "user") };
-  try { await send(text, where); $("#input").value = ""; $("#kind").value = "work"; } catch (err) { toast(err.message, true); }
+  try { await send(text, where); $("#input").value = ""; $("#kind").value = "work"; keepDraft(); } catch (err) { toast(err.message, true); }
 });
 $("#input").addEventListener("keydown", (e) => {
   if (!$("#mention-box").classList.contains("hidden") && ["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) return mentionKey(e);
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#composer").requestSubmit(); }
 });
-$("#input").addEventListener("input", () => { useBox($("#input")); mentionSuggest(); });
+$("#input").addEventListener("input", () => { useBox($("#input")); mentionSuggest(); keepDraft(); });
+// Kept under the view the text was typed in (S.draftFor), not the one now on
+// screen: openView calls this after the team may already have changed.
+function keepDraft() {
+  const k = S.draftFor; if (!k) return;
+  const text = $("#input").value;
+  if (text.trim()) S.drafts[k] = text; else delete S.drafts[k];
+  save("agychat.drafts", S.drafts);
+}
 
 // --- emoji ---------------------------------------------------------------------------
 

@@ -61,6 +61,7 @@ button { font: inherit; cursor: pointer; }
 .dot.running { background: var(--ok); box-shadow: 0 0 0 3px rgba(25,164,99,.25); animation: pulse 1.6s infinite; }
 .dot.idle { background: #7d8590; }
 .dot.failing { background: var(--bad); }
+.dot.held { background: #f6c744; }
 .dot.offline { border: 1.5px solid #7d8590; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(25,164,99,0); } }
 

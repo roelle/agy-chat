@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.12.0"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.13.0"
 agy-chat --author <your name>
 ```
 

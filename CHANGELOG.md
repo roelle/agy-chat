@@ -7,6 +7,22 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-29
+
+### Added
+- **An agent held by the hop budget shows it.** Its dot turns yellow, and
+  its status reads "waiting: hop budget: 32 of 32 wakes in the last 10
+  min; your messages still wake it". Requires agy-team 3.15.0. With it, a
+  running team's budget frees up over time instead of waiting for every
+  turn to end, and your own messages always wake their recipient.
+
+### Fixed
+- **Text typed in one channel followed you to the next.** Switching
+  channels kept the message box as it was, so pressing Enter would have
+  sent it to whichever channel was open. Each channel and conversation
+  now keeps its own unsent text, also across reloads, and sending clears
+  only that one.
+
 ## [0.12.0] - 2026-10-29
 
 ### Added
@@ -330,7 +346,12 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.10.2...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/roelle/agy-chat/compare/v0.12.0...v0.13.0
+[0.12.0]: https://github.com/roelle/agy-chat/compare/v0.11.1...v0.12.0
+[0.11.1]: https://github.com/roelle/agy-chat/compare/v0.11.0...v0.11.1
+[0.11.0]: https://github.com/roelle/agy-chat/compare/v0.10.3...v0.11.0
+[0.10.3]: https://github.com/roelle/agy-chat/compare/v0.10.2...v0.10.3
 [0.10.2]: https://github.com/roelle/agy-chat/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/roelle/agy-chat/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/roelle/agy-chat/compare/v0.9.0...v0.10.0
