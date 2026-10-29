@@ -7,6 +7,17 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-29
+
+### Added
+- **How busy each agent is.** Under each name in the Agents list: a bar
+  for the last hour, then "81% hr · 14% day · 2 waiting", the share of the
+  last hour and day spent in turns and the waking messages not yet picked
+  up. Hover for all-time turns and hours. These are the figures agents now
+  get from `list_teammates`, which asks them to hand work to whoever has
+  room. `/api/state` carries them as each agent's `load`. Requires
+  agy-team 3.16.0.
+
 ## [0.13.0] - 2026-10-29
 
 ### Added
@@ -346,7 +357,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/roelle/agy-chat/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/roelle/agy-chat/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/roelle/agy-chat/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/roelle/agy-chat/compare/v0.11.0...v0.11.1

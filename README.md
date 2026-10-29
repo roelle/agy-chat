@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.13.0"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.14.0"
 agy-chat --author <your name>
 ```
 
@@ -114,6 +114,11 @@ untick that and pick some.
   updates") unless you tick *quiet updates*. Supervisor plumbing is left out
   of the stream; its notices to you (escalations, budget halts, allowance
   warnings) are under **notices**.
+- **How busy each agent is** shows under its name in the Agents list: a
+  bar for the last hour, then the share of the last hour and day it spent
+  in turns, and how many waking messages wait for it. Hover for its
+  all-time turns. Agents see the same figures in `list_teammates`, which
+  asks them to hand work to whoever has room.
 - **Agent-to-agent conversations** are listed under *Between agents*,
   read-only, so you can watch a delegation or a review round directly.
 - **What becomes a link.** Web addresses; go links (`go/name`, sent to the

@@ -255,8 +255,20 @@ function renderAgents() {
       : (m.source || "");
     return `<li data-agent="${esc(a.name)}"><span class="dot ${esc(p.state || "offline")}"></span><span class="name" title="${esc(a.name)}">${esc(nameOf(a.name))}${a.alias ? ` <span class="alias-of">${esc(a.name)}</span>` : ""}</span>
       <button class="model ${over ? "override" : ""} ${bad ? "unavailable" : ""}" data-agent="${esc(a.name)}" title="${esc(tip)}">${bad || fallsBack ? "⚠ " : ""}${esc(m.model || "default")}${m.effort ? "·" + esc(m.effort) : ""}</button>
-      <span class="state" title="${esc(state)}">${esc(state)}</span></li>`;
+      <span class="state" title="${esc(state)}">${esc(state)}</span>${loadHTML(a.load)}</li>`;
   }).join("");
+}
+
+// The same figures agents get from list_teammates, to see who has room.
+function loadHTML(l) {
+  if (!l) return "";
+  const pct = (x) => `${Math.round(x * 100)}%`;
+  const hours = l.busy_s >= 3600 ? `${(l.busy_s / 3600).toFixed(1)} h` : `${Math.round(l.busy_s / 60)} min`;
+  const tip = `In turns: ${pct(l.busy.hour)} of the last hour, ${pct(l.busy.day)} of the last day; `
+    + `${l.turns} turn(s), ${hours} in all.${l.waiting ? ` ${l.waiting} waking message(s) not yet picked up.` : ""}`
+    + " Agents see the same in list_teammates.";
+  return `<span class="load" title="${esc(tip)}"><span class="bar"><i style="width:${pct(l.busy.hour)}"></i></span>`
+    + `${pct(l.busy.hour)} hr · ${pct(l.busy.day)} day${l.waiting ? ` · ${l.waiting} waiting` : ""}</span>`;
 }
 
 function renderTasks() {

@@ -100,6 +100,17 @@ def test_state_has_agents_models_presence_and_channels(server):
     assert "general" in st["channels"] and st["author"] == "matt"
 
 
+def test_state_says_how_busy_each_agent_is(server):
+    app, port, td, _ = server
+    ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - 60))
+    (td / "events.jsonl").write_text(json.dumps(
+        {"ts": ts, "event": "turn", "agent": "coder", "duration_s": 900}) + "\n")
+    _, st = call(port, "GET", "/api/state?team=demo", token=app.token)
+    load = {a["name"]: a["load"] for a in st["agents"]}
+    assert load["coder"]["busy"]["hour"] == 0.25 and load["coder"]["turns"] == 1
+    assert load["qa"]["busy"] == {"hour": 0.0, "day": 0.0}
+
+
 def test_posting_wakes_only_whom_it_mentions(server):
     app, port, td, _ = server
     _, r = call(port, "POST", "/api/post", {"team": "demo", "channel": "general",

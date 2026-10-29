@@ -99,13 +99,15 @@ class App:
         t = self.team(team)
         rec = Record(t.dir)
         presence = rec.presence()
+        load = rec.load() if hasattr(rec, "load") else {}
         models = rec.models()
         agents = []
         for a in rec.roster().get("agents", []):
             n = a["name"]
             agents.append({"name": n, "alias": a.get("alias"), "role": a.get("role", ""),
                            "aliases": a.get("aliases") or [],
-                           "presence": presence.get(n, {}), "model": models.get(n, {})})
+                           "presence": presence.get(n, {}), "model": models.get(n, {}),
+                           "load": load.get(n)})
         sup = rec.supervisor()
         # Keyed as the client keys its views ("c:<channel>", "d:<a>,<b>"):
         # when each last had something from someone else, and when an agent

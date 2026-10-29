@@ -69,6 +69,9 @@ button { font: inherit; cursor: pointer; }
 .agents li { padding: 5px 14px; display: grid; grid-template-columns: 12px 1fr auto; gap: 4px 8px; align-items: center; }
 .agents .name { font-weight: 600; }
 .agents .state { grid-column: 2 / 4; color: var(--side-dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agents .load { grid-column: 2 / 4; display: flex; align-items: center; gap: 6px; color: var(--side-dim); font-size: 11px; white-space: nowrap; }
+.agents .load .bar { width: 36px; height: 4px; border-radius: 2px; background: #3a414c; overflow: hidden; flex: none; }
+.agents .load .bar i { display: block; height: 100%; background: var(--ok); }
 .agents .model { font-size: 11px; color: var(--side-dim); background: none; border: 1px dashed #3a414c; border-radius: 4px; padding: 1px 6px; }
 .agents .model.override { color: #ffd479; border-color: #7a6326; }
 
