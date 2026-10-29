@@ -7,6 +7,9 @@ const LOUD = new Set(["deliverable", "question", "blocker", "review", "reminder"
 const S = {
   teams: [], team: null, state: null, view: null, messages: [], replyCounts: {},
   thread: null, events: null, seen: load("agychat.seen", {}), latest: {}, atMe: {},
+  // When each thread was last opened, by root id; and, for the view on
+  // screen, what had been seen before it was opened (`base`).
+  tseen: load("agychat.tseen", {}), base: "", fresh: {},
 };
 const TERMINAL = new Set(["done", "failed", "cancelled"]);
 
@@ -85,6 +88,8 @@ function sender(m) {
   return op && (!m.author || m.author.toLowerCase() === op.toLowerCase()) ? op : (m.author || nameOf("user"));
 }
 const mentionsMe = (m) => m.from !== "user" && (m.mentions || []).includes("user");
+// Addressed to you: an @mention, or an agent's direct message.
+const forMe = (m) => m.from !== "user" && m.from !== "supervisor" && (mentionsMe(m) || (!m.channel && m.to === "user"));
 
 function msgHTML(m, opts = {}) {
   const kind = m.kind || "work";
@@ -95,7 +100,9 @@ function msgHTML(m, opts = {}) {
   const task = m.task_id ? `<a class="badge quiet" href="${boardURL(m.task_id)}" title="${esc(m.task_id)} — open on the board">${esc(tk ? tk.title : m.task_id)}</a>` : "";
   const to = opts.showTo && m.to && !String(m.to).startsWith("#") ? ` <span class="when">→ ${esc(nameOf(m.to))}</span>` : "";
   const n = S.replyCounts[m.id] || 0;
-  const replies = !opts.inThread && n ? `<div class="replies" data-thread="${esc(m.id)}">${n} repl${n === 1 ? "y" : "ies"}</div>` :
+  const fr = !opts.inThread && S.fresh[m.id];
+  const freshText = fr ? ` <span class="fresh">· ${fr.n} new</span>${fr.at ? ` <span class="at-you" title="a reply mentions you">@ you</span>` : ""}` : "";
+  const replies = !opts.inThread && n ? `<div class="replies ${fr ? "new" : ""}" data-thread="${esc(m.id)}">${n} repl${n === 1 ? "y" : "ies"}${freshText}</div>` :
                   !opts.inThread && m.id ? `<div class="replies faint"><span data-thread="${esc(m.id)}">reply in thread</span><span class="mk-task" data-mktask="${esc(m.id)}">make a task</span></div>` : "";
   return `<div class="msg ${quiet ? "quiet" : ""} ${LOUD.has(kind) ? kind : ""} ${mentionsMe(m) ? "mentions-me" : ""}" data-id="${esc(m.id || "")}">
     ${avatarHTML(who, m.from)}
@@ -159,6 +166,14 @@ async function refreshState() {
     document.body.appendChild(b);
   }
   S.replyCounts = S.state.reply_counts || {};
+  // What each view last had, so unread survives a reload. On a team never
+  // opened in this browser, everything so far counts as read.
+  const latest = S.state.latest || {};
+  if (!Object.keys(S.seen).some((k) => k.startsWith(`${S.team}|`))) {
+    for (const [k, ts] of Object.entries(latest)) S.seen[`${S.team}|${k}`] = ts;
+    save("agychat.seen", S.seen);
+  }
+  for (const [k, ts] of Object.entries(latest)) if (ts > (S.latest[k] || "")) S.latest[k] = ts;
   // Mentions of you since you last looked, not only the ones that arrive live.
   for (const [k, ts] of Object.entries(S.state.mentions_of_user || {}))
     if (ts > (S.seen[`${S.team}|${k}`] || "") && !(S.view && viewKey(S.view) === k)) S.atMe[k] = true;
@@ -194,8 +209,9 @@ function renderSupervisor() {
 function navItem(v, label, extra = "", opts) {
   const k = viewKey(v); const active = S.view && viewKey(S.view) === k;
   const unread = (S.latest[k] || "") > (S.seen[`${S.team}|${k}`] || "") && !active;
-  const at = S.atMe[k] && !active ? `<span class="at" title="mentions you">@</span>` : "";
-  return `<li class="${active ? "active" : ""} ${unread ? "unread" : ""} ${opts?.cls || ""}" data-view='${esc(JSON.stringify(v))}'>${label}${at}${extra}</li>`;
+  const mentioned = S.atMe[k] && !active;
+  const at = mentioned ? `<span class="at" title="${v.type === "dm" ? "a message to you" : "mentions you"}">@</span>` : "";
+  return `<li class="${active ? "active" : ""} ${unread ? "unread" : ""} ${mentioned ? "mentioned" : ""} ${opts?.cls || ""}" data-view='${esc(JSON.stringify(v))}'>${label}${at}${extra}</li>`;
 }
 
 function renderSidebar() {
@@ -292,7 +308,64 @@ async function openView(v) {
   const params = v.type === "channel" ? { channel: v.id } : { dm: v.pair.join(",") };
   const res = await api(`/api/messages?${q(params)}`);
   S.messages = res.messages; S.replyCounts = res.reply_counts || S.replyCounts;
+  S.base = S.seen[`${S.team}|${viewKey(v)}`] || "";
+  noteThreads();
   markSeen(); renderMessages(); renderSidebar();
+  jumpToNew();
+}
+
+// Threads: a reply is new if it came after you last opened its thread, or,
+// for a thread you never opened, after you last looked at the view. That
+// second date is written down when the view opens, so an unopened thread
+// stays marked on later visits until you open it.
+const tKey = (id) => `${S.team}|${id}`;
+function lastReplies() {
+  const out = {};
+  for (const m of S.messages) if (m.thread) (out[m.thread] ||= []).push(m);
+  return out;
+}
+function noteThreads() {
+  let changed = false;
+  for (const [root, reps] of Object.entries(lastReplies())) {
+    if (S.tseen[tKey(root)] !== undefined) continue;
+    // A view never looked at before: its threads count as read.
+    S.tseen[tKey(root)] = S.base || reps[reps.length - 1].ts; changed = true;
+  }
+  if (changed) saveThreadsSeen();
+}
+function saveThreadsSeen() {
+  const keys = Object.keys(S.tseen);
+  if (keys.length > 4000)                // keep the most recent
+    S.tseen = Object.fromEntries(Object.entries(S.tseen).sort((a, b) => String(b[1]).localeCompare(String(a[1]))).slice(0, 3000));
+  save("agychat.tseen", S.tseen);
+}
+function computeFresh() {
+  S.fresh = {};
+  for (const [root, reps] of Object.entries(lastReplies())) {
+    const since = S.tseen[tKey(root)] ?? S.base;
+    const fresh = reps.filter((m) => m.from !== "user" && m.ts > since);
+    if (fresh.length) S.fresh[root] = { n: fresh.length, at: fresh.some(forMe) };
+  }
+}
+// Open on what changed: the first thing addressed to you, else the first
+// new message or thread with new replies; marked for a moment. A mention in
+// a thread reply opens that thread too (first, since the panel narrows the
+// view and moves things). Nothing new: the end, as before.
+async function jumpToNew() {
+  const box = $("#messages");
+  const showQuiet = $("#show-quiet").checked;
+  const roots = S.messages.filter((m) => !m.thread || !S.messages.some((r) => r.id === m.thread))
+    .filter((m) => showQuiet || !QUIET.has(m.kind));
+  const isNew = (m) => S.base && m.from !== "user" && m.ts > S.base;
+  const target = roots.find((m) => (isNew(m) && forMe(m)) || S.fresh[m.id]?.at)
+    || roots.find((m) => isNew(m) || S.fresh[m.id]);
+  if (!target) { box.scrollTop = box.scrollHeight; return; }
+  if (S.fresh[target.id]?.at && !(isNew(target) && forMe(target))) await openThread(target.id).catch(() => {});
+  const el = box.querySelector(`.msg[data-id="${CSS.escape(target.id || "")}"]`);
+  if (!el) { box.scrollTop = box.scrollHeight; return; }
+  el.scrollIntoView({ block: "center" });
+  el.classList.add("flash");
+  setTimeout(() => el.classList.remove("flash"), 2600);
 }
 
 // The tasks this channel is about: the ones that name it. They live in the
@@ -375,11 +448,14 @@ function renderMessages() {
   const showQuiet = $("#show-quiet").checked;
   const roots = S.messages.filter((m) => !m.thread || !S.messages.some((r) => r.id === m.thread));
   if (!roots.length) { box.innerHTML = `<div class="empty">Nothing here yet.</div>`; return; }
-  const html = []; let hidden = 0;
+  computeFresh();
+  const html = []; let hidden = 0; let divided = false;
   const flush = () => { if (hidden) { html.push(`<div class="collapsed-quiet" data-unhide="1">${hidden} quiet update${hidden > 1 ? "s" : ""} (ack, fyi, status) hidden</div>`); hidden = 0; } };
   for (const m of roots) {
     if (!showQuiet && QUIET.has(m.kind)) { hidden++; continue; }
-    flush(); html.push(msgHTML(m, { showTo: S.view.type === "dm" && !S.view.pair.includes("user") }));
+    flush();
+    if (!divided && S.base && m.from !== "user" && m.ts > S.base) { html.push(`<div class="new-divider"><span>new</span></div>`); divided = true; }
+    html.push(msgHTML(m, { showTo: S.view.type === "dm" && !S.view.pair.includes("user") }));
   }
   flush();
   const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
@@ -403,6 +479,11 @@ async function openThread(id) {
   if (pop && pop.closest("#drawer")) { pop.classList.add("hidden"); $("#composer").insertBefore(pop, $("#composer").firstChild); S.ta = null; }
   const { messages } = await api(`/api/messages?${q({ thread: id })}`);
   const root = messages.find((m) => m.id === id) || messages[0];
+  const last = messages.reduce((a, m) => (m.ts > a ? m.ts : a), "");
+  if (last && last !== S.tseen[tKey(id)]) {
+    S.tseen[tKey(id)] = last; saveThreadsSeen();
+    if (S.fresh[id]) renderMessages();
+  }
   const where = root?.channel ? { channel: root.channel } : { to: (root?.from === "user" ? root?.to : root?.from) };
   const canReply = root && (root.channel || root.from === "user" || root.to === "user");
   $("#drawer-thread").innerHTML = messages.map((m) => msgHTML(m, { inThread: true })).join("") +
@@ -652,7 +733,7 @@ function listen() {
       if (item.thread) S.replyCounts[item.thread] = (S.replyCounts[item.thread] || 0) + 1;
       const k = item.from === "supervisor" ? `d:supervisor,user` : keyOf(item);
       if (k && !(item.from === "supervisor" && item.to !== "user")) S.latest[k] = item.ts;
-      if (k && mentionsMe(item) && !(S.view && k === viewKey(S.view))) S.atMe[k] = true;
+      if (k && forMe(item) && !(S.view && k === viewKey(S.view))) S.atMe[k] = true;
       if (S.view && k === viewKey(S.view)) { S.messages.push(item); markSeen(); renderMessages(); }
       if (S.thread && (item.thread === S.thread || item.id === S.thread)) openThread(S.thread);
       renderSidebar();

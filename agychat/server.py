@@ -107,15 +107,29 @@ class App:
                            "aliases": a.get("aliases") or [],
                            "presence": presence.get(n, {}), "model": models.get(n, {})})
         sup = rec.supervisor()
-        # Where an agent last mentioned the operator, keyed as the client keys
-        # its views ("c:<channel>"), so a mention made while nobody was
-        # looking is still flagged.
-        mentions = {}
+        # Keyed as the client keys its views ("c:<channel>", "d:<a>,<b>"):
+        # when each last had something from someone else, and when an agent
+        # last addressed the operator there (an @mention, or a direct
+        # message). So what arrived while nobody was looking still shows.
+        mentions, latest = {}, {}
         for m in rec.bus():
-            if m.get("channel") and m.get("from") != "user" and "user" in (m.get("mentions") or []):
-                mentions[f"c:{m['channel']}"] = m.get("ts")
+            frm = m.get("from")
+            if not frm or frm == "user":
+                continue
+            if m.get("channel"):
+                key = f"c:{m['channel']}"
+            elif m.get("to"):
+                key = "d:" + ",".join(sorted((frm, m["to"])))
+            else:
+                continue
+            if frm == "supervisor" and m.get("to") != "user":
+                continue
+            latest[key] = m.get("ts")
+            if frm != "supervisor" and ("user" in (m.get("mentions") or [])
+                                        or (not m.get("channel") and m.get("to") == "user")):
+                mentions[key] = m.get("ts")
         return {"team": team, "author": self.author, "operator": rec.operator(),
-                "mentions_of_user": mentions,
+                "mentions_of_user": mentions, "latest": latest,
                 "agents": agents, "channels": rec.channels(),
                 "conversations": rec.conversations(), "tasks": self.tasks(team)[:300],
                 "supervisor": sup, "stopped": rec.stopped(),

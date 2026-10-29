@@ -374,3 +374,17 @@ def test_state_carries_aliases_the_operator_and_mentions_of_them(server):
     assert st["operator"]["name"] == "Matt" and "roellem" in st["operator"]["handles"]
     assert next(a for a in st["agents"] if a["name"] == "coder")["alias"] == "Ada"
     assert "c:billing" in st["mentions_of_user"]
+
+
+def test_state_says_when_each_view_last_had_news_so_unread_survives_a_reload(server):
+    app, port, td, _ = server
+    from agyteam import actions, channels
+    channels.create(td, "billing", ["coder"])
+    root = actions.post(td, "billing", "which rounding?", author="matt")
+    channels.post(FileTransport("coder"), td, "billing", "banker's", thread=root["id"])
+    FileTransport("coder").send("user", "done with the parser")
+    actions.dm(td, "coder", "thanks")
+    _, st = call(port, "GET", "/api/state?team=demo", token=app.token)
+    assert set(st["latest"]) == {"c:billing", "d:coder,user"}
+    # A direct message to you is addressed to you; your own messages are not news.
+    assert "d:coder,user" in st["mentions_of_user"] and "c:billing" not in st["mentions_of_user"]

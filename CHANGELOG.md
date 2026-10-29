@@ -7,6 +7,30 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-29
+
+### Added
+- **Mentions stand out.** A channel or conversation where an agent
+  addressed you is yellow and bold with a red @ badge, louder than the
+  plain bold of "something new". A direct message to you counts as
+  addressing you.
+- **New replies in older threads are marked.** A thread's first message
+  says "N replies · K new" in bold, with a dot, when replies came after you
+  last opened it, and "@ you" when one of them mentions you. The mark stays
+  until you open the thread, across visits and reloads.
+- **A channel opens on what changed.** Opening it scrolls to the first
+  thing you have not seen and highlights it for a moment: a mention of you
+  first, then the oldest new message or thread with new replies. A mention
+  in a thread reply opens that thread. A "new" line marks where unseen
+  messages start.
+
+### Fixed
+- **Unread marks were lost on reload.** A channel turned bold only for
+  messages that arrived while the page was open. The server now says when
+  each channel and conversation last had something from someone else, so
+  what arrived while the page was closed shows too. In a browser that has
+  never opened a team, everything so far counts as read.
+
 ## [0.11.1] - 2026-10-29
 
 ### Changed

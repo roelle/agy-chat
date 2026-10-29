@@ -205,7 +205,19 @@ body.dragging.col { cursor: col-resize; } body.dragging.row { cursor: row-resize
 /* mentions of the operator */
 .mention.me { background: var(--accent); color: #fff; }
 .msg.mentions-me { border-left: 3px solid var(--accent); background: rgba(58,111,247,.05); }
-.nav li .at { margin-left: auto; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); border-radius: 999px; padding: 0 6px; }
+/* Addressed to you: louder than unread (bold) -- yellow, with a red @. */
+.nav li.mentioned { font-weight: 700; color: #f6c744; }
+.nav li .at { margin-left: auto; font-size: 11px; font-weight: 700; color: #fff; background: var(--bad); border-radius: 999px; padding: 0 6px; }
+/* A thread with replies since you last opened it. */
+.replies.new { font-weight: 700; }
+.replies.new::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-right: 6px; vertical-align: 1px; }
+.replies .at-you { font-size: 11px; color: #fff; background: var(--bad); border-radius: 999px; padding: 0 6px; margin-left: 4px; }
+/* Where the new part of a view starts, and the message a view opened on. */
+.new-divider { display: flex; align-items: center; gap: 8px; margin: 6px 18px; color: var(--bad); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.new-divider::before, .new-divider::after { content: ""; flex: 1; border-top: 1px solid var(--bad); opacity: .5; }
+.new-divider::before { flex: 0 0 12px; }
+.msg.flash { animation: flash 2.6s ease-out; }
+@keyframes flash { 0%, 35% { background: var(--mention); } 100% { background: transparent; } }
 .nav li .at + .count { margin-left: 6px; }
 .agents .alias-of { color: var(--side-dim); font-weight: 400; font-size: 11px; }
 .modal-card textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; }

@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.11.1"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.12.0"
 agy-chat --author <your name>
 ```
 
@@ -139,6 +139,15 @@ untick that and pick some.
   them with their owners, open ones first, closed ones too if you like,
   and the tokens spent on each.
 - **Bookmarks** on a channel (links, go links, paths) sit under its name.
+- **What's new, and where.** A channel or conversation with something you
+  have not seen is bold. One where an agent addressed you (an @mention, or
+  a direct message) is yellow with a red **@**. A thread with replies since
+  you last opened it says so on its first message (**2 replies · 1 new**,
+  and **@ you** if one of them mentions you), until you open it. Opening a
+  channel goes to the first thing that changed, mentions of you first, and
+  marks it for a moment; a mention in a thread opens the thread. A **new**
+  line shows where the unseen messages start. What you have seen is kept in
+  this browser.
 - **Emoji**: 😀 in the message box, or type `:` and a name (`:rocket:`), or
   your system's picker.
 - **`/` commands**: `/task`, `/project` (and one for each of the team's
