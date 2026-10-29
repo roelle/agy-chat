@@ -23,7 +23,7 @@ the conversation.
 ## Run it
 
 ```bash
-pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.14.0"
+pip install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.15.0"
 agy-chat --author <your name>
 ```
 
@@ -105,7 +105,10 @@ untick that and pick some.
   the agents you mention: `@coder`, `@here` (everyone in the channel), `@all`
   (the whole team). Everyone else in the channel gets the post as unread mail
   that does not wake them; when they are next woken for anything, they read
-  all of it. A busy channel costs no turns.
+  all of it. A busy channel costs no turns. A channel can name agents
+  that every post wakes, no mention needed (**Channel… → Woken by every
+  post**). Use it for an agent that owns the channel's work, docs in
+  `#docs`. The header and the message box say who that is.
 - **Direct messages wake.** A message to one agent was addressed to it.
 - **Threads.** Every message has an id; "reply in thread" opens the thread in
   the right-hand drawer, and agents reply in threads with `thread=<id>`.

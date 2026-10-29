@@ -287,6 +287,8 @@ class App:
             return {"members": actions.set_members(t.dir, body["name"], body.get("add") or [],
                                                    body.get("remove") or [],
                                                    everyone=body.get("everyone"))}
+        if action == "wake":
+            return {"wake": actions.set_channel_wake(t.dir, body["name"], body.get("agents") or [])}
         if action == "topic":
             actions.set_topic(t.dir, body["name"], body.get("topic") or "")
             return {"ok": True}

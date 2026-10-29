@@ -304,8 +304,11 @@ async function openView(v) {
     : `Archived ${esc(c.archived)}: read-only, and out of every agent's channel list. <button class="btn small" data-chan-act="restore">Restore</button>`;
   if (v.type === "channel") {
     $("#view-title").textContent = `# ${v.id}`;
-    $("#view-sub").textContent = `${(c.members || []).map(nameOf).join(", ") || "no agents"}${c.topic ? " — " + c.topic : ""}`;
-    $("#input").placeholder = `Message #${v.id} — only @mentions wake agents (@name, @here, @all)`;
+    const wake = (c.wake || []).map(nameOf).join(", ");
+    $("#view-sub").textContent = `${(c.members || []).map(nameOf).join(", ") || "no agents"}${c.topic ? " — " + c.topic : ""}`
+      + (wake ? ` · every post wakes ${wake}` : "");
+    $("#input").placeholder = wake ? `Message #${v.id} — wakes ${wake}; anyone else needs an @mention`
+      : `Message #${v.id} — only @mentions wake agents (@name, @here, @all)`;
     $("#edit-members").classList.remove("hidden");
     $("#new-task").classList.toggle("hidden", !!c.archived);
   } else {
@@ -897,6 +900,10 @@ $("#edit-members").onclick = () => {
        <button type="button" class="btn danger" data-chan-act="delete">Delete…</button>`;
   modal(`<h3>#${esc(name)}</h3><label>Topic</label><input type="text" name="topic" value="${esc(c.topic || "")}">
     <label>Agents in it</label>${agentChecks(before, !!c.everyone)}
+    <label>Woken by every post, no @mention needed</label>
+    <div class="checks">${S.state.agents.map((a) =>
+      `<label title="${esc(a.name)}"><input type="checkbox" name="w" value="${esc(a.name)}" ${(c.wake || []).includes(a.name) ? "checked" : ""}> ${esc(nameOf(a.name))}</label>`).join("")}</div>
+    <div class="hint">For an agent that owns this channel's work. Its own posts never wake it. Two such agents can wake each other back and forth, which the hop budget bounds.</div>
     <div class="hint" style="margin-top:10px">Archive: read-only, out of every agent's list, reversible.
     Delete: archive and hide its history here; the messages stay in the team's record, and Restore brings it back.</div>`,
     async (fd) => {
@@ -905,6 +912,12 @@ $("#edit-members").onclick = () => {
       if (fd.get("everyone")) { if (!c.everyone) await api("/api/channel", { action: "members", name, everyone: true }); }
       else await api("/api/channel", { action: "members", name, everyone: false,
                                        add: after.filter((x) => !before.includes(x)), remove: before.filter((x) => !after.includes(x)) });
+      // Only members can be woken by every post: ticking a non-member adds them.
+      const wake = fd.getAll("w"); const members = fd.get("everyone") ? S.state.agents.map((a) => a.name) : after;
+      const join = wake.filter((x) => !members.includes(x));
+      if (join.length) await api("/api/channel", { action: "members", name, add: join });
+      if ([...wake].sort().join() !== [...(c.wake || [])].sort().join() || join.length)
+        await api("/api/channel", { action: "wake", name, agents: wake });
       await refreshState(); openView(S.view);
     }, acts);
 };

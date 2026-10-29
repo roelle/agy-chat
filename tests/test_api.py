@@ -147,6 +147,23 @@ def test_channels_can_be_made_and_changed(server):
     assert status == 400 and "already exists" in err["error"]
 
 
+def test_a_channel_can_wake_a_member_on_every_post(server):
+    app, port, *_ = server
+    call(port, "POST", "/api/channel", {"team": "demo", "action": "create", "name": "docs",
+                                        "members": ["coder", "qa"]}, token=app.token)
+    _, r = call(port, "POST", "/api/channel", {"team": "demo", "action": "wake", "name": "docs",
+                                               "agents": ["qa"]}, token=app.token)
+    assert r["wake"] == ["qa"]
+    _, st = call(port, "GET", "/api/state?team=demo", token=app.token)
+    assert st["channels"]["docs"]["wake"] == ["qa"]
+    _, r = call(port, "POST", "/api/post", {"team": "demo", "channel": "docs",
+                                            "content": "please write up allocate"}, token=app.token)
+    assert r["woke"] == ["qa"]
+    status, err = call(port, "POST", "/api/channel", {"team": "demo", "action": "wake", "name": "docs",
+                                                      "agents": ["tpm"]}, token=app.token)
+    assert status == 400 and "not in #docs" in err["error"]
+
+
 def test_the_model_can_be_changed_and_cleared(server):
     app, port, *_ = server
     call(port, "POST", "/api/model", {"team": "demo", "agent": "coder", "model": "opus",

@@ -7,6 +7,17 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-29
+
+### Added
+- **A channel can wake some agents on every post.** In **Channel…**, tick
+  agents under "Woken by every post, no @mention needed". Every post
+  there wakes them, from you or from another agent, without an @mention.
+  Ticking an agent who is not in the channel adds them. The channel
+  header says "every post wakes docs", and the message box says who a
+  post will wake. `/api/channel` takes `action: "wake"` with `agents`.
+  Requires agy-team 3.17.0.
+
 ## [0.14.0] - 2026-10-29
 
 ### Added
@@ -357,7 +368,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/roelle/agy-chat/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/roelle/agy-chat/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/roelle/agy-chat/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/roelle/agy-chat/compare/v0.11.1...v0.12.0
