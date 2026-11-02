@@ -25,7 +25,7 @@ the conversation.
 ## Run it
 
 ```bash
-pipx install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.19.0"
+pipx install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.20.0"
 agy-chat
 ```
 
@@ -117,6 +117,13 @@ untick that and pick some.
 
 ## How it behaves
 
+- **Waiting on you** lists a stopped team, unanswered questions and blockers,
+  your tasks, and stuck tasks. A reply clears a message from an agent. The ×
+  clears a message without replying, and the agent is not told. Notices from the
+  supervisor have nobody to reply to, so they have the × and **Clear all**, and
+  a notice that an agent keeps failing clears itself once that agent's turn
+  works. Cleared messages stay where they were sent, so notices stay readable
+  under **notices**. Only the operator can clear.
 - **Channels are pull, mentions are push.** Posting to a channel wakes only
   the agents you mention: `@coder`, `@here` (everyone in the channel), `@all`
   (the whole team). Everyone else in the channel gets the post as unread mail

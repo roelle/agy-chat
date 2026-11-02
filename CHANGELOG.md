@@ -7,6 +7,18 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-02
+
+### Added
+- **Waiting on you can be cleared.** Supervisor notices had nobody to reply to,
+  so they stayed on the list for good. Each message now has an ×, and notices
+  have **Clear all**. A cleared message stays where it was sent, and an agent
+  whose question is cleared is not told. `POST /api/clear_waiting` does this,
+  for the operator only. Requires agy-team 3.25.0.
+
+### Fixed
+- Notices no longer offer a thread reply, which had nowhere to go.
+
 ## [0.19.0] - 2026-11-01
 
 ### Added
@@ -422,7 +434,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/roelle/agy-chat/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/roelle/agy-chat/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/roelle/agy-chat/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/roelle/agy-chat/compare/v0.17.1...v0.18.0
