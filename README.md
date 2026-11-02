@@ -1,5 +1,7 @@
 # agy-chat
 
+> Work continues in [a-team](https://github.com/roelle/a-team), which brings agy-team and agy-chat together as one product. This repository stays here for teams that have not moved.
+
 A work-chat client for [agy-team](https://github.com/roelle/agy-team): you and
 your agents in shared channels and threads, with the team's live state beside
 the conversation.
