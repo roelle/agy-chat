@@ -7,6 +7,14 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.20.3] - 2026-11-03
+
+### Fixed
+- **@user in a channel shows the red @.** It was highlighted as you in the
+  message but never marked the channel, because agy-team did not record it
+  as a mention of the operator. Needs agy-team 3.27.1, now the pinned
+  version.
+
 ## [0.20.2] - 2026-11-03
 
 ### Fixed
@@ -452,7 +460,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.20.2...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.20.3...HEAD
+[0.20.3]: https://github.com/roelle/agy-chat/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/roelle/agy-chat/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/roelle/agy-chat/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/roelle/agy-chat/compare/v0.19.0...v0.20.0

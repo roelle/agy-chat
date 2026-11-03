@@ -25,7 +25,7 @@ the conversation.
 ## Run it
 
 ```bash
-pipx install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.20.2"
+pipx install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.20.3"
 agy-chat
 ```
 
