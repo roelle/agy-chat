@@ -7,6 +7,16 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-11-03
+
+### Fixed
+- **A reply arriving in a thread no longer clears what you are typing in it.**
+  Each new message in an open thread rebuilt the whole panel, reply box
+  included, and the draft was lost. Now only the messages are redrawn: the
+  box keeps its text, cursor and focus. What you type in a thread reply is
+  also kept per thread in the browser, as the main box's draft already was,
+  so another thread or a reload does not lose it.
+
 ## [0.20.0] - 2026-11-02
 
 ### Added
@@ -434,7 +444,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/roelle/agy-chat/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/roelle/agy-chat/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/roelle/agy-chat/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/roelle/agy-chat/compare/v0.18.0...v0.18.1
