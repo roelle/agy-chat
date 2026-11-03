@@ -251,8 +251,9 @@ function needsItem(n) {
   if (n.kind === "stopped") return row("bad", `<span class="what">Team stopped</span> ${text(n.reason)}`, n.reason, "");
   if (n.kind === "question" || n.kind === "blocker") {
     const v = n.channel ? { type: "channel", id: n.channel } : { type: "dm", pair: ["user", n.dm] };
-    const clear = n.id && !S.state.member
-      ? `<button class="need-clear" data-clear="${esc(n.id)}" title="Clear without replying. It stays in the conversation, and ${n.from === "supervisor" ? "nothing is sent" : esc(nameOf(n.from)) + " is not told"}." aria-label="Clear">×</button>` : "";
+    const key = n.key || n.id;   // key: also for a message from before ids
+    const clear = key && !S.state.member
+      ? `<button class="need-clear" data-clear="${esc(key)}" title="Clear without replying. It stays in the conversation, and ${n.from === "supervisor" ? "nothing is sent" : esc(nameOf(n.from)) + " is not told"}." aria-label="Clear">×</button>` : "";
     return row(n.kind === "blocker" ? "bad" : "", `${clear}<span class="what">${esc(nameOf(n.from))}</span> ${text(n.content)}`,
       `${n.kind} from ${n.from}: ${n.content}`, `data-view='${esc(JSON.stringify(v))}'`);
   }
@@ -265,7 +266,7 @@ function renderNeeds() {
   $("#needs-head").classList.toggle("hidden", !rows.length);
   $("#needs").classList.toggle("hidden", !rows.length);
   $("#needs-count").textContent = rows.length;
-  const notices = rows.filter((n) => n.from === "supervisor" && n.id).length;
+  const notices = rows.filter((n) => n.from === "supervisor" && (n.key || n.id)).length;
   $("#needs").innerHTML = (notices > 1 && !S.state.member
     ? `<li class="need-all"><button data-clear-notices>Clear all ${notices} notices</button></li>` : "")
     + rows.map(needsItem).join("");

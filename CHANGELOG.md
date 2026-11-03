@@ -7,6 +7,14 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-11-03
+
+### Fixed
+- **Notices from before messages had ids can be cleared.** The × and Clear
+  all went by a message's id, and notices written before ids had none, so they
+  stayed on Waiting on you. They now go by each row's key, which every message
+  has. Needs agy-team 3.27.0, now the pinned version.
+
 ## [0.20.1] - 2026-11-03
 
 ### Fixed
@@ -444,7 +452,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.20.2...HEAD
+[0.20.2]: https://github.com/roelle/agy-chat/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/roelle/agy-chat/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/roelle/agy-chat/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/roelle/agy-chat/compare/v0.18.1...v0.19.0
