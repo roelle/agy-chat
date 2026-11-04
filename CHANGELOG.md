@@ -7,6 +7,16 @@ break; the public surface is the command line and the HTTP API under /api.
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-04
+
+### Added
+- **`launch` in the roster's `supervisor` block**: the command **Start
+  team** runs instead of `python -m agyteam.supervisor --daemon`, for a host
+  whose supervisor needs its own interpreter, wrapper or container. An argv
+  list; `{team_dir}`, `{team}` and `{python}` are filled in, a leading `~`
+  expanded, and it runs with `AGYTEAM_TEAM_DIR` set. Start misconfigured the
+  supervisor on such a host.
+
 ## [0.20.3] - 2026-11-03
 
 ### Fixed
@@ -460,7 +470,8 @@ break; the public surface is the command line and the HTTP API under /api.
   changes.
 - Requires agy-team 3.0.0.
 
-[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.20.3...HEAD
+[Unreleased]: https://github.com/roelle/agy-chat/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/roelle/agy-chat/compare/v0.20.3...v0.21.0
 [0.20.3]: https://github.com/roelle/agy-chat/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/roelle/agy-chat/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/roelle/agy-chat/compare/v0.20.0...v0.20.1

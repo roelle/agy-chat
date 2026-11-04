@@ -232,3 +232,29 @@ def test_a_restart_opens_no_second_tab(tmp_path):
     assert args == ["--port", "9000", "--no-open"]
     parsed = server_module.opens_browser(False if "--no-open" in args else None, "127.0.0.1")
     assert parsed is False
+
+
+def test_start_runs_the_rosters_launch_command(tmp_path, monkeypatch):
+    """A host whose supervisor needs its own interpreter or wrapper says how
+    to start it, and the Start button runs that instead of guessing."""
+    import sys
+    from agyteam import actions
+    monkeypatch.delenv("AGYTEAM_AGENT", raising=False)
+    td = tmp_path / "home" / "team"
+    td.mkdir(parents=True)
+    script = ("import os, sys; open(sys.argv[1], 'w').write("
+              "' '.join(sys.argv[2:]) + ' ' + os.environ['AGYTEAM_TEAM_DIR'])")
+    (td / "roster.json").write_text(json.dumps({"agents": [], "supervisor": {
+        "launch": [sys.executable, "-c", script, "{team_dir}/launched.txt", "{team}", "--daemon"]}}))
+    team = Team(td)
+    got = team.start_supervisor()
+    assert got["started"]
+    out = td / "launched.txt"
+    for _ in range(100):
+        if out.exists() and out.read_text():
+            break
+        time.sleep(0.05)
+    assert out.read_text() == f"home --daemon {td.resolve()}"
+    (td / "roster.json").write_text(json.dumps({"agents": [], "supervisor": {"launch": "run-it"}}))
+    with pytest.raises(actions.OperatorError, match="list of strings"):
+        team.start_supervisor()

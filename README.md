@@ -25,7 +25,7 @@ the conversation.
 ## Run it
 
 ```bash
-pipx install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.20.3"
+pipx install "agy-chat @ git+https://github.com/roelle/agy-chat.git@v0.21.0"
 agy-chat
 ```
 
@@ -65,7 +65,16 @@ The runner and manager are the team's own when its roster has a
 [`supervisor` block](https://github.com/roelle/agy-team#how-a-team-is-run-the-rosters-supervisor-block)
 (`runner`, `runner_config`, `manager`); otherwise the runner is whatever your
 environment configures (`AGYTEAM_RUNNER`; the default is the `agy` CLI, which
-needs nothing more) and the manager is detected from roles. The status pill
+needs nothing more) and the manager is detected from roles. A roster whose
+`supervisor` block has `"launch": ["/opt/team/bin/run-supervisor",
+"{team_dir}"]` is started with that command instead (an argv list), for a
+host where the supervisor needs a wrapper that sets up credentials, another
+interpreter or a container. `{team_dir}`, `{team}` (the team's name) and
+`{python}` (the interpreter the app would have used) are filled in and a
+leading `~` is expanded; it runs detached with `AGYTEAM_TEAM_DIR` set and
+its output in the team's supervisor log, and it must start the supervisor
+as a daemon and leave. Anything but a list of strings makes Start report
+an error. The status pill
 shows the runner and manager the supervisor is using; hover it to see where
 each came from. It uses `AGYTEAM_PYTHON`
 if set, else the virtualenv of an agy-team checkout it was installed from,
